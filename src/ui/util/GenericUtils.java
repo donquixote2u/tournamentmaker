@@ -90,7 +90,7 @@ public class GenericUtils {
 		if(value == null || value.isEmpty() || data == null || value.length() > data.length()) {
 			return null;
 		}
-		String newData = data.replaceFirst("(^|\\P{L})(?i)\\Q" + value + "\\E(\\P{L}|$)", "");
+		String newData = data.replaceFirst("(^|\\P{L})(?i)\\Q" + value + "\\E(\\P{L}|$)", " ");
 		if(data.equals(newData)) {
 			return null;
 		}

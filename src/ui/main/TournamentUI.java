@@ -1335,10 +1335,10 @@ public class TournamentUI extends JFrame {
 								tournamentViewManager.modified();
 							}
 							setCursor(null);
-							if(Tournament.VERSION > tournament.getVersion()) {
+							if(Tournament.COMPATIBLE > tournament.getVersion()) {
 								JOptionPane.showMessageDialog(TournamentUI.this, "Old data file detected. Modifying this file is not recommended.", "Warning", JOptionPane.WARNING_MESSAGE);
 							}
-							else if(Tournament.VERSION < tournament.getVersion()) {
+							else if(Tournament.COMPATIBLE < tournament.getVersion()) {
 								JOptionPane.showMessageDialog(TournamentUI.this, "This data file was created by a newer version of " + APP_NAME + ". Please use the new version to access this file.", "Warning", JOptionPane.WARNING_MESSAGE);
 							}
 						}
