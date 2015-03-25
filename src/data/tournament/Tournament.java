@@ -23,7 +23,7 @@ import data.team.Team;
 
 public class Tournament implements Serializable {
 	private static final long serialVersionUID = 5748474555295789647L;
-	public static final int VERSION = 6;
+	public static final int VERSION = 7;
 	public static final int COMPATIBLE = 5;
 	private transient List<Player> newPlayers;
 	private transient TreeMap<Team, List<Team>> newTeams;
@@ -486,7 +486,11 @@ public class Tournament implements Serializable {
 			if(match.getIndex() > end) {
 				end = match.getIndex();
 			}
-			// TODO undo the match data (requested court/scheduled time)
+			match.setRequestedDate(null);
+			setMatchOrder(match, 0);
+			match.setT1OnStart(false, false);
+			match.setT2OnStart(false, false);
+			addUserActionMatch(match);
 		}
 		int difference = end - (--start);
 		for(Court court : courts) {

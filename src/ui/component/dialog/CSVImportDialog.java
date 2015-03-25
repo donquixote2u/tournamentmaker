@@ -42,6 +42,7 @@ public class CSVImportDialog extends ImportDialog {
 	private JComboBox<String> dataType;
 	private JPanel teamFields, playerFields;
 	private JComboBox<String> teamType;
+	private JComboBox<String> eventName;
 	private TextFieldWithDropDown teamName, seed;
 	private TextFieldWithDropDown playerName, gender, address, email, phone, member, club, level, dob, paid, due, events;
 	
@@ -92,22 +93,31 @@ public class CSVImportDialog extends ImportDialog {
 				else {
 					previouslySelectedType = type;
 				}
-				while(teamFields.getComponentCount() > 6) {
-					teamFields.remove(6);
+				while(teamFields.getComponentCount() > 8) {
+					teamFields.remove(8);
 				}
 				Team team = getTournamentViewManager().getTournament().getTeamByType(previouslySelectedType);
 				for(int i = 0; i < team.getNumberOfPlayers(); ++i) {
-					teamFields.add(new JLabel("Player " + (i + 1) + " Name (Required)"), GenericUtils.createGridBagConstraint(0, 3 + i, 0.3));
-					teamFields.add(new TextFieldWithDropDown(columns.keySet()), GenericUtils.createGridBagConstraint(1, 3 + i, 0.7));
+					teamFields.add(new JLabel("Player " + (i + 1) + " Name (Required)"), GenericUtils.createGridBagConstraint(0, 4 + i, 0.3));
+					teamFields.add(new TextFieldWithDropDown(columns.keySet()), GenericUtils.createGridBagConstraint(1, 4 + i, 0.7));
 				}
 				pack();
 			}
 		});
 		teamFields.add(teamType, GenericUtils.createGridBagConstraint(1, 0, 0.7));
-		teamFields.add(new JLabel("Name"), GenericUtils.createGridBagConstraint(0, 1, 0.3));
-		teamFields.add(teamName = new TextFieldWithDropDown(columns.keySet()), GenericUtils.createGridBagConstraint(1, 1, 0.7));
-		teamFields.add(new JLabel("Seed"), GenericUtils.createGridBagConstraint(0, 2, 0.3));
-		teamFields.add(seed = new TextFieldWithDropDown(columns.keySet()), GenericUtils.createGridBagConstraint(1, 2, 0.7));
+		teamFields.add(new JLabel("Event Name"), GenericUtils.createGridBagConstraint(0, 1, 0.3));
+		List<String> eventNames = new ArrayList<String>();
+		for(Event event : getTournamentViewManager().getTournament().getEvents()) {
+			eventNames.add(event.getName());
+		}
+		Collections.sort(eventNames);
+		eventNames.add(0, "");
+		eventName = new JComboBox<String>(eventNames.toArray(new String[0]));
+		teamFields.add(eventName, GenericUtils.createGridBagConstraint(1, 1, 0.7));
+		teamFields.add(new JLabel("Name"), GenericUtils.createGridBagConstraint(0, 2, 0.3));
+		teamFields.add(teamName = new TextFieldWithDropDown(columns.keySet()), GenericUtils.createGridBagConstraint(1, 2, 0.7));
+		teamFields.add(new JLabel("Seed"), GenericUtils.createGridBagConstraint(0, 3, 0.3));
+		teamFields.add(seed = new TextFieldWithDropDown(columns.keySet()), GenericUtils.createGridBagConstraint(1, 3, 0.7));
 		root.add(teamFields);
 		playerFields = new JPanel(new GridBagLayout());
 		playerFields.add(new JLabel("Name (Required)"), GenericUtils.createGridBagConstraint(0, 0, 0.3));
@@ -338,14 +348,14 @@ public class CSVImportDialog extends ImportDialog {
 					// find the matching players and create the team
 					Team newTeam = newTeamType.newInstance();
 					boolean matchedPlayer = false;
-					for(int i = 7; i < teamFields.getComponentCount(); i += 2) {
+					for(int i = 9; i < teamFields.getComponentCount(); i += 2) {
 						matchedPlayer = false;
 						String playerName = getValueFromData(((TextFieldWithDropDown) teamFields.getComponent(i)).getText(), values, true);
 						if(!playerName.isEmpty()) {
 							for(Player player : players) {
 								if(player.getName().equals(playerName)) {
 									matchedPlayer = true;
-									newTeam.setPlayer((i - 6) / 2, player);
+									newTeam.setPlayer((i - 8) / 2, player);
 									break;
 								}
 							}
@@ -375,6 +385,14 @@ public class CSVImportDialog extends ImportDialog {
 					}
 					newTeam.setName(getValueFromData(teamName.getText(), values, true));
 					newTeam.setSeed(getValueFromData(seed.getText(), values, false));
+					String event = (String) eventName.getSelectedItem();
+					if(event != null && !event.isEmpty()) {
+						for(Player player : newTeam.getPlayers()) {
+							HashSet<String> events = new HashSet<String>(player.getEvents());
+							events.add(event);
+							player.setEvents(events);
+						}
+					}
 					if(isNew) {
 						++imported;
 						getTournamentViewManager().getTournament().addTeam(newTeam);
@@ -474,13 +492,13 @@ public class CSVImportDialog extends ImportDialog {
 			if(!isValidText(seed.getText())) {
 				errors += "Seed is invalid.\n";
 			}
-			for(int i = 7; i < teamFields.getComponentCount(); i += 2) {
+			for(int i = 9; i < teamFields.getComponentCount(); i += 2) {
 				TextFieldWithDropDown field = (TextFieldWithDropDown) teamFields.getComponent(i);
 				if(!isValidText(field.getText())) {
-					errors += "Player " + (((i - 6) / 2) + 1) + " Name is invalid.\n";
+					errors += "Player " + (((i - 8) / 2) + 1) + " Name is invalid.\n";
 				}
 				else if(field.getText().isEmpty() || field.getText().indexOf('[') == -1) {
-					errors += "Player " + (((i - 6) / 2) + 1) + " Name can not be empty and must contain at least one column header.\n";
+					errors += "Player " + (((i - 8) / 2) + 1) + " Name can not be empty and must contain at least one column header.\n";
 				}
 			}
 		}

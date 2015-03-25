@@ -20,6 +20,7 @@ import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 
+import data.event.Event;
 import data.player.Player;
 import data.team.Team;
 import ui.main.TournamentUI;
@@ -30,6 +31,7 @@ public class GenericImportDialog extends ImportDialog {
 	private static final long serialVersionUID = 5103472598222170840L;
 	private File dataFile;
 	private JComboBox<String> teamType;
+	private JComboBox<String> eventName;
 
 	public GenericImportDialog(TournamentUI owner, TournamentViewManager manager, File file) {
 		super(owner, manager, "Import from Generic Data File", file);
@@ -80,6 +82,15 @@ public class GenericImportDialog extends ImportDialog {
 		for(String type : types) {
 			teamType.addItem(type);
 		}
+		fields.add(new JLabel("Event Name"), GenericUtils.createGridBagConstraint(0, 1, 0.3));
+		List<String> eventNames = new ArrayList<String>();
+		for(Event event : getTournamentViewManager().getTournament().getEvents()) {
+			eventNames.add(event.getName());
+		}
+		Collections.sort(eventNames);
+		eventNames.add(0, "");
+		eventName = new JComboBox<String>(eventNames.toArray(new String[0]));
+		fields.add(eventName, GenericUtils.createGridBagConstraint(1, 1, 0.7));
 		root.add(fields);
 		return display;
 	}
@@ -94,7 +105,7 @@ public class GenericImportDialog extends ImportDialog {
 	
 	protected String importData() {
 		String messages = "";
-		int imported = 0, duplicated = 0;
+		int imported = 0, updated = 0;
 		LineNumberReader reader = null;
 		try {
 			// grab the players and sort the from longest name to shortest
@@ -135,9 +146,17 @@ public class GenericImportDialog extends ImportDialog {
 							boolean isNew = true;
 							for(Team team : getTournamentViewManager().getTournament().getTeams(newTeamType)) {
 								if((new HashSet<Player>(team.getPlayers())).equals(new HashSet<Player>(newTeam.getPlayers()))) {
-									++duplicated;
+									++updated;
 									isNew = false;
 									break;
+								}
+							}
+							String event = (String) eventName.getSelectedItem();
+							if(event != null && !event.isEmpty()) {
+								for(Player player : newTeam.getPlayers()) {
+									HashSet<String> events = new HashSet<String>(player.getEvents());
+									events.add(event);
+									player.setEvents(events);
 								}
 							}
 							if(isNew) {
@@ -166,8 +185,8 @@ public class GenericImportDialog extends ImportDialog {
 		if(imported > 0) {
 			messages += "Imported " + imported + " teams.\n";
 		}
-		if(duplicated > 0) {
-			messages += "Ignored " + duplicated + " duplicate teams.\n";
+		if(updated > 0) {
+			messages += "Updated " + updated + " teams.\n";
 		}
 		if(messages.isEmpty()) {
 			messages = "No valid teams were detected.\n";
