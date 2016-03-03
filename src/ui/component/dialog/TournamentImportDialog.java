@@ -116,7 +116,7 @@ public class TournamentImportDialog extends ImportDialog {
 	}
 	
 	public String checkImportCompatibility() {
-		if(tournament.getVersion() > Tournament.VERSION) {
+		if(tournament != null && tournament.getVersion() > Tournament.VERSION) {
 			return "The data file was created by a newer version of " + TournamentUI.APP_NAME + ".\nPlease open your current data file with the newer version and import again.";
 		}
 		return super.checkImportCompatibility();
