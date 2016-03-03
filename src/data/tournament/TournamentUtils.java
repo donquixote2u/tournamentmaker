@@ -26,6 +26,7 @@ public class TournamentUtils {
 		ArrayList<Match> hasTime = new ArrayList<Match>();
 		ArrayList<Match> hasForfeit = new ArrayList<Match>();
 		ArrayList<Match> matchesToSort = new ArrayList<Match>();
+		ArrayList<Match> futureMatches = new ArrayList<Match>();
 		for(Match match : matches) {
 			// don't sort completed or started matches
 			if(match.isComplete() || match.getStart() != null) {
@@ -52,6 +53,9 @@ public class TournamentUtils {
 			}
 			// don't sort matches that are missing both teams
 			if(match.getTeam1() == null && match.getTeam2() == null) {
+				if(tournament.getShowAllMatches()) {
+					futureMatches.add(match);
+				}
 				continue;
 			}
 			matchesToSort.add(match);
@@ -189,7 +193,7 @@ public class TournamentUtils {
 				Pair<Date, LinkedHashSet<Player>> entry = playerQueue.get(index++);
 				// get the most important match
 				while(entry != null) {
-					boolean playerNeedsRest = needsRest(tournament.getTimeBetweenMatches(), entry.getKey(), current.getCurrentDate());
+					boolean playerNeedsRest = needsRest(tournament.getLongTimeBetweenMatches(), entry.getKey(), current.getCurrentDate());
 					for(Player player : entry.getValue()) {
 						// look through this player's potential matches and try to find one we can play
 						for(Match match : playerToMatches.get(player)) {
@@ -202,7 +206,7 @@ public class TournamentUtils {
 								continue;
 							}
 							// select the more important match
-							Match matchToPlay = getMatchToPlay(match, tournament.getTimeBetweenMatches(), unsorted, current, feederMatches, matchComp);
+							Match matchToPlay = getMatchToPlay(match, tournament.getLongTimeBetweenMatches(), unsorted, current, feederMatches, matchComp);
 							if(matchToPlay == null) {
 								continue;
 							}
@@ -231,7 +235,7 @@ public class TournamentUtils {
 				// check the mirror match
 				LinkedHashSet<Match> selectedMatches = new LinkedHashSet<Match>();
 				selectedMatches.add(selectedMatch.getValue());
-				Match mirror = getMatchToPlay(selectedMatch.getValue().getMirrorMatch(), tournament.getTimeBetweenMatches(), unsorted, current, feederMatches, matchComp);
+				Match mirror = getMatchToPlay(selectedMatch.getValue().getMirrorMatch(), tournament.getLongTimeBetweenMatches(), unsorted, current, feederMatches, matchComp);
 				if(mirror != null && !hasRequestedDelay(mirror, current)) {
 					selectedMatches.add(mirror);
 				}
@@ -330,6 +334,13 @@ public class TournamentUtils {
 				sorted.add(match.getNextAvailableCourtOrder() - 1, match);
 			}
 		}
+		// add all the future matches
+		Collections.sort(futureMatches, new Comparator<Match>() {
+			public int compare(Match m1, Match m2) {
+				return m2.getIndex() - m1.getIndex();
+			}
+		});
+		sorted.addAll(futureMatches);
 		tournament.updateEstimatedTimes(sorted);
 		return sorted;
 	}

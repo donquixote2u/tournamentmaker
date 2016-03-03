@@ -80,18 +80,10 @@ public class Match implements Serializable {
 			return null;
 		}
 		// save all the old values
+		Match oldWinnerMatch = winnerMatch;
 		Match oldLoserMatch = selectedLoserMatch;
 		Team oldWinnerTeam = winner;
 		Team oldLoserTeam = loser;
-		int oldWinnerMatchesPlayed = -1;
-		if(winnerMatch != null && winnerMatch.isComplete()) {
-			if(equals(winnerMatch.getToTeam1Match(true))) {
-				oldWinnerMatchesPlayed = winnerMatch.t1MatchesPlayed;
-			}
-			else {
-				oldWinnerMatchesPlayed = winnerMatch.t2MatchesPlayed;
-			}
-		}
 		Team loserTeam1 = null;
 		Team loserTeam2 = null;
 		if(selectedLoserMatch != null) {
@@ -125,12 +117,29 @@ public class Match implements Serializable {
 		if(matches == null) {
 			return null;
 		}
-		if(oldWinnerTeam == winner && winnerMatch != null && (oldWinnerMatchesPlayed == -1 || winner.getMatchesPlayed() == oldWinnerMatchesPlayed)) {
-			matches.remove(winnerMatch);
+		boolean removeWinnerMatch = false;
+		if(oldWinnerTeam == winner && winnerMatch != null && oldWinnerMatch == winnerMatch) {
+			if(winnerMatch == selectedLoserMatch) {
+				removeWinnerMatch = true;
+			}
+			else {
+				matches.remove(winnerMatch);
+				winnerMatch.updateAffectedMatchCount();
+				if(oldWinnerTeam != null) {
+					oldWinnerTeam.setResetMatch(false);
+				}
+			}
 		}
 		if(oldLoserTeam == loser && selectedLoserMatch != null && oldLoserMatch == selectedLoserMatch) {
 			if(selectedLoserMatch.getTeam1() == loserTeam1 && selectedLoserMatch.getTeam2() == loserTeam2) {
 				matches.remove(selectedLoserMatch);
+				selectedLoserMatch.updateAffectedMatchCount();
+				if(oldLoserTeam != null) {
+					oldLoserTeam.setResetMatch(false);
+				}
+				if(removeWinnerMatch) {
+					oldWinnerTeam.setResetMatch(false);
+				}
 			}
 		}
 		else if(oldLoserMatch != null) {
@@ -144,6 +153,60 @@ public class Match implements Serializable {
 		return recalculating;
 	}
 	
+	// after recalculating a match, we need to go through the matches that didn't get new teams and update their win/loss
+	public void updateAffectedMatchCount() {
+		// there is nothing for us to do if this match isn't complete
+		if(!isComplete()) {
+			return;
+		}
+		// if neither of the teams need to be recalculated, just return since no other matches will be affected
+		if((t1 == null || t1.canResetMatch()) && (t2 == null || t2.canResetMatch())) {
+			return;
+		}
+		// only recalculate the records for teams that have been reset
+		if(t1 != null && !t1.canResetMatch()) {
+			t1MatchesPlayed = t1.getMatchesPlayed();
+			t1MatchesWon = t1.getMatchesWon();
+			t1MatchesLost = t1.getMatchesLost();
+			if(t1 == winner) {
+				if(loser != null) {
+					t1.setMatchesWon(t1.getMatchesWon() + 1);
+				}
+				if(shouldCountMatch(t2, getTeam2Forfeit())) {
+					t1.setMatchesPlayed(t1.getMatchesPlayed() + 1);
+				}
+			}
+			if(t1 == loser) {
+				t1.setMatchesPlayed(t1.getMatchesPlayed() + 1);
+				t1.setMatchesLost(t1.getMatchesLost() + 1);
+			}
+		}
+		if(t2 != null && !t2.canResetMatch()) {
+			t2MatchesPlayed = t2.getMatchesPlayed();
+			t2MatchesWon = t2.getMatchesWon();
+			t2MatchesLost = t2.getMatchesLost();
+			if(t2 == winner) {
+				if(loser != null) {
+					t2.setMatchesWon(t2.getMatchesWon() + 1);
+				}
+				if(shouldCountMatch(t1, getTeam1Forfeit())) {
+					t2.setMatchesPlayed(t2.getMatchesPlayed() + 1);
+				}
+			}
+			if(t2 == loser) {
+				t2.setMatchesPlayed(t2.getMatchesPlayed() + 1);
+				t2.setMatchesLost(t2.getMatchesLost() + 1);
+			}
+		}
+		// update the winner and loser matches
+		if(winnerMatch != null) {
+			winnerMatch.updateAffectedMatchCount();
+		}
+		if(selectedLoserMatch != null) {
+			selectedLoserMatch.updateAffectedMatchCount();
+		}
+	}
+	
 	public Set<Match> finish() {
 		// return null if the match isn't complete
 		Set<Match> updatedMatches = new HashSet<Match>();
@@ -155,7 +218,6 @@ public class Match implements Serializable {
 				t2Forfeit = true;
 			}
 			if(calculateResult()) {
-				complete = true;
 				if(t1 != null && setT1Forfeit && setT1Withdrawal) {
 					t1.setIsWithdrawn(true);
 				}
@@ -239,6 +301,7 @@ public class Match implements Serializable {
 				}
 			}
 		}
+		complete = true;
 		return updatedMatches;
 	}
 	
@@ -470,6 +533,11 @@ public class Match implements Serializable {
 		}
 		matches.add(this);
 		return matches;
+	}
+	
+	// override this function for matches that have special dependent matches we have to check for undo
+	public List<Match> getDependentMatchesForUndo() {
+		return new ArrayList<Match>();
 	}
 	
 	// override this function for matches that need different processing to determine where the loser goes

@@ -477,6 +477,43 @@ public class EventTeamSelector extends JDialog {
 				if(t2 == null) {
 					return 1;
 				}
+				String t1Seed = t1.getSeed();
+				String t2Seed = t2.getSeed();
+				if(t1Seed != null || t2Seed != null) {
+					if(t1Seed == null) {
+						return 1;
+					}
+					if(t2Seed == null) {
+						return -1;
+					}
+					boolean s1 = false, s2 = false;
+					try {
+						Integer.parseInt(t1Seed);
+						s1 = true;
+					}
+					catch(NumberFormatException e) {}
+					try {
+						Integer.parseInt(t2Seed);
+						s2 = true;
+					}
+					catch(NumberFormatException e) {}
+					if(s1 && s2) {
+						int comp = Integer.parseInt(t1Seed) - Integer.parseInt(t2Seed);
+						if(comp != 0) {
+							return comp;
+						}
+					}
+					if(s1) {
+						return -1;
+					}
+					if(s2) {
+						return 1;
+					}
+					int comp = t1Seed.compareToIgnoreCase(t2Seed);
+					if(comp != 0) {
+						return comp;
+					}
+				}
 				String t1Name = t1.getName();
 				String t2Name = t2.getName();
 				if(t1Name == null && t2Name == null) {

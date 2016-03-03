@@ -82,6 +82,29 @@ public class EventUtils {
 	}
 	
 	/**
+	 * Returns the list of matches that feed into these matches.
+	 * @param matches
+	 * @return
+	 */
+	public static List<Match> getDefaultFeederMatches(List<Match> matches) {
+		ArrayList<Match> feeders = new ArrayList<Match>();
+		for(Match match : matches) {
+			if(match == null) {
+				continue;
+			}
+			Match pre = match.getDefaultToTeam1Match();
+			if(pre != null) {
+				feeders.add(pre);
+			}
+			pre = match.getDefaultToTeam2Match();
+			if(pre != null) {
+				feeders.add(pre);
+			}
+		}
+		return feeders;
+	}
+	
+	/**
 	 * Returns all the starting matches that feed into this one. Ignores matches that feed into this one by dropping into it. 
 	 * @param end
 	 */

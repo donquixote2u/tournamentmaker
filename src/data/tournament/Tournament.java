@@ -16,6 +16,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
+import ui.util.GenericUtils;
 import data.event.Event;
 import data.match.Match;
 import data.player.Player;
@@ -23,7 +24,7 @@ import data.team.Team;
 
 public class Tournament implements Serializable {
 	private static final long serialVersionUID = 5748474555295789647L;
-	public static final int VERSION = 7;
+	public static final int VERSION = 8;
 	public static final int COMPATIBLE = 5;
 	private transient List<Player> newPlayers;
 	private transient TreeMap<Team, List<Team>> newTeams;
@@ -38,19 +39,21 @@ public class Tournament implements Serializable {
 	private List<String> levels;
 	private List<Court> courts;
 	private int timeBetweenMatches;
+	private boolean ignorePlayerStatus, showAllMatches, useDefaultPrinter, autoPrintMatches, disableBracketPooling;
+	
 	// this is for backwards compatibility
 	private Map<Class<? extends Team>, List<Team>> teams;
 	
 	public Tournament(String name, List<String> levels, int numberOfCourts, int timeBetweenMatches) {
-		if(name == null || numberOfCourts < 1 || timeBetweenMatches < 0) {
+		if(numberOfCourts < 1) {
 			throw new RuntimeException("invalid parameters");
 		}
-		this.name = name;
+		setName(name);
 		this.levels = levels;
 		if(this.levels == null) {
 			this.levels = new ArrayList<String>();
 		}
-		this.timeBetweenMatches = timeBetweenMatches;
+		setTimeBetweenMatches(timeBetweenMatches);
 		events = new ArrayList<Event>();
 		players = new ArrayList<Player>();
 		createdTeams = new TreeMap<Team, List<Team>>();
@@ -68,6 +71,13 @@ public class Tournament implements Serializable {
 		return name;
 	}
 	
+	public void setName(String name) {
+		if(name == null) {
+			throw new RuntimeException("invalid parameters");
+		}
+		this.name = name;
+	}
+	
 	public void setFilePath(String filePath) {
 		this.filePath = filePath;
 	}
@@ -76,12 +86,66 @@ public class Tournament implements Serializable {
 		return filePath;
 	}
 	
+	public boolean getIgnorePlayerStatus() {
+		return ignorePlayerStatus;
+	}
+	
+	public void setIgnorePlayerStatus(boolean ignorePlayerStatus) {
+		this.ignorePlayerStatus = ignorePlayerStatus;
+		for(Player player : players) {
+			player.setIgnoreCheckedIn(ignorePlayerStatus);
+		}
+	}
+	
+	public boolean getShowAllMatches() {
+		return showAllMatches;
+	}
+	
+	public void setShowAllMatches(boolean showAllMatches) {
+		this.showAllMatches = showAllMatches;
+	}
+	
+	public boolean getUseDefaultPrinter() {
+		return useDefaultPrinter;
+	}
+	
+	public void setUseDefaultPrinter(boolean useDefaultPrinter) {
+		this.useDefaultPrinter = useDefaultPrinter;
+	}
+	
+	public boolean getAutoPrintMatches() {
+		return autoPrintMatches;
+	}
+	
+	public void setAutoPrintMatches(boolean autoPrintMatches) {
+		this.autoPrintMatches = autoPrintMatches;
+	}
+	
+	public boolean getDisableBracketPooling() {
+		return disableBracketPooling;
+	}
+	
+	public void setDisableBracketPooling(boolean disableBracketPooling) {
+		this.disableBracketPooling = disableBracketPooling;
+	}
+	
 	/**
 	 * @return the desired time between matches in milliseconds
 	 */
-	public long getTimeBetweenMatches() {
+	public long getLongTimeBetweenMatches() {
 		// this was originally the number of minutes desired between matches. we multiply it by 60000 here instead of when it's stored for backwards compatibility 
 		return timeBetweenMatches * 60000L;
+	}
+	
+	public int getTimeBetweenMatches() {
+		return timeBetweenMatches;
+	}
+	
+	public void setTimeBetweenMatches(int timeBetweenMatches) {
+		if(timeBetweenMatches < 0) {
+			throw new RuntimeException("invalid parameters");
+		}
+		this.timeBetweenMatches = timeBetweenMatches;
 	}
 	
 	/**
@@ -325,7 +389,7 @@ public class Tournament implements Serializable {
 		}
 		matches.add(match);
 		// undo all dependent matches
-		ArrayList<Match> dependents = new ArrayList<Match>();
+		ArrayList<Match> dependents = new ArrayList<Match>(match.getDependentMatchesForUndo());
 		if(match.getWinnerMatch() != null) {
 			dependents.add(match.getWinnerMatch());
 		}
@@ -396,8 +460,16 @@ public class Tournament implements Serializable {
 	}
 	
 	public synchronized List<Match> getMatches() {
-		Set<Match> matches = new HashSet<Match>(this.matches);
-		matches.addAll(userActionMatches);
+		Set<Match> matches = new HashSet<Match>();
+		if(showAllMatches) {
+			for(Event event : events) {
+				matches.addAll(event.getAllMatches());
+			}
+		}
+		else {
+			matches.addAll(this.matches);
+			matches.addAll(userActionMatches);
+		}
 		return TournamentUtils.sortMatches(this, matches);
 	}
 	
@@ -620,6 +692,7 @@ public class Tournament implements Serializable {
 		}
 		players.add(player);
 		newPlayers.add(player);
+		player.setIgnoreCheckedIn(ignorePlayerStatus);
 	}
 	
 	public String removePlayer(Player player) {
@@ -649,6 +722,59 @@ public class Tournament implements Serializable {
 	
 	public boolean hasNewPlayers() {
 		return !newPlayers.isEmpty();
+	}
+	
+	public String getUpcomingMatchesForPlayer(Player player) {
+		if(player == null) {
+			return null;
+		}
+		ArrayList<Match> upcoming = new ArrayList<Match>();
+		for(Match match : matches) {
+			if(match == null) {
+				continue;
+			}
+			Event event = match.getEvent();
+			if(event.getPausedLevels() != null && event.getPausedLevels().contains(match.getLevel()) && event.getPausedMatchLevel() >= match.getMatchLevel()) {
+				continue;
+			}
+			if(match.getPlayers().contains(player)) {
+				upcoming.add(match);
+			}
+		}
+		if(upcoming.isEmpty()) {
+			return "No upcoming matches.";
+		}
+		Collections.sort(upcoming, new Comparator<Match>() {
+			public int compare(Match m1, Match m2) {
+				return TournamentUtils.compareDates(m1.getEstimatedDate(), m2.getEstimatedDate());
+			}
+		});
+		String info = "";
+		for(Match match : upcoming) {
+			if(match.getTeam1() == null) {
+				info += match.getToTeam1MatchLongDiscription(match.getToTeam1MatchDescription());
+				info = info.substring(0, info.length() - 1);
+			}
+			else if(match.getTeam2() == null) {
+				info += match.getToTeam2MatchLongDiscription(match.getToTeam2MatchDescription());
+				info = info.substring(0, info.length() - 1);
+			}
+			else {
+				info += "Playing against ";
+				if(match.getTeam1().getPlayers().contains(player)) {
+					info += match.getTeam2().getName();
+				}
+				else {
+					info += match.getTeam1().getName();
+				}
+			}
+			info += " in " + match.getEvent().getPoolName(match, disableBracketPooling);
+			if(match.getEstimatedDate() != null) {
+				info += " (est. " + GenericUtils.dateToString(match.getEstimatedDate(), "hh:mm a") + ")";
+			}
+			info += "\n";
+		}
+		return info;
 	}
 	
 	public boolean addTeam(Team team) {
@@ -758,6 +884,12 @@ public class Tournament implements Serializable {
 		return version;
 	}
 	
+	public void updateVersion() {
+		if(version >= COMPATIBLE) {
+			version = VERSION;
+		}
+	}
+	
 	private void updateAverageMatchTime(Match match) {
 		// ignore matches with forfeits
 		if(match == null || match.getTeam1Forfeit() || match.getTeam2Forfeit()) {
@@ -838,5 +970,6 @@ public class Tournament implements Serializable {
 				}
 			}
 		}
+		setIgnorePlayerStatus(ignorePlayerStatus);
 	}
 }

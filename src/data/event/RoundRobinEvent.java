@@ -30,11 +30,16 @@ public class RoundRobinEvent extends Event {
 		List<Team> teams = getTeams();
 		for(int i = 0; i < teams.size(); ++i) {
 			for(int j = i + 1; j < teams.size(); ++j) {
-				Match match = createMatch(teams.get(i), teams.get(j), level);
-				matches.add(match);
+				for(int count = 0; count < getNumberOfDuplicateMatches(); ++count) {
+					matches.add(createMatch(count % 2 == 0 ? teams.get(i) : teams.get(j), count % 2 == 0 ? teams.get(j) : teams.get(i), level));
+				}
 			}
 		}
 		return getMatches(level);
+	}
+	
+	public int getNumberOfDuplicateMatches() {
+		return 1;
 	}
 	
 	protected void undoEvent() {
@@ -43,16 +48,7 @@ public class RoundRobinEvent extends Event {
 	
 	protected List<String> generateDisplayLevels(List<String> levels) {
 		List<String> displayLevels = new ArrayList<String>();
-		String displayLevel  = "";
-		for(String level : levels) {
-			displayLevel += level + ", ";
-		}
-		if(displayLevel.isEmpty()) {
-			displayLevel = "All";
-		}
-		else {
-			displayLevel = displayLevel.substring(0, displayLevel.length() - 2);
-		}
+		String displayLevel  = generateSingleDisplayLevelString();
 		displayLevels.add(displayLevel);
 		return displayLevels;
 	}
@@ -71,11 +67,15 @@ public class RoundRobinEvent extends Event {
 		return Collections.unmodifiableList(matches);
 	}
 	
+	protected EventPainter getEventPainter(String level) {
+		return new RoundRobinEventPainter(this, level);
+	}
+	
 	public Match generateMatch(int minScore, int maxScore, int winBy, int bestOf) {
 		return new RoundRobinMatch(minScore, maxScore, winBy, bestOf);
 	}
 	
-	public EventPainter getEventPainter(String level) {
-		return new RoundRobinEventPainter(this, level);
+	public boolean canPoolMatches() {
+		return false;
 	}
 }

@@ -2,6 +2,7 @@ package data.event.painter;
 
 import java.awt.Dimension;
 import java.awt.Graphics;
+import java.util.List;
 
 import ui.main.TournamentViewManager;
 import data.event.Event;
@@ -11,22 +12,24 @@ import data.team.Team;
 
 public abstract class EventPainter {
 	private Event event;
-	private String level;
+	private String value;
+	private List<Match> matches;
 	
 	public EventPainter(Event event, String level) {
 		if(event == null || !event.getDisplayLevels().contains(level)) {
 			throw new RuntimeException("illegal parameters");
 		}
 		this.event = event;
-		this.level = level;
+		value = level;
 	}
 	
-	public final Event getEvent() {
-		return event;
-	}
-	
-	public final String getLevel() {
-		return level;
+	public EventPainter(Event event, String description, List<Match> matches) {
+		if(event == null || matches == null) {
+			throw new RuntimeException("illegal parameters");
+		}
+		this.event = event;
+		this.matches = matches;
+		value = description;
 	}
 	
 	public boolean equals(Object other) {
@@ -41,7 +44,25 @@ public abstract class EventPainter {
 	}
 	
 	public String toString() {
-		return event.getName() + (event.showDisplayLevel() ? " - " + level : "");
+		if(matches == null) {
+			return event.getName() + (event.showDisplayLevel() ? " - " + value : "");
+		}
+		return event.getName() + value;
+	}
+	
+	protected final Event getEvent() {
+		return event;
+	}
+	
+	protected final String getTitle() {
+		return event.getName() + (matches == null ? " - " : "") + value;
+	}
+	
+	protected final List<Match> getMatches() {
+		if(matches == null) {
+			return event.getMatches(value);
+		}
+		return matches;
 	}
 	
 	protected String getTeamString(Team team) {

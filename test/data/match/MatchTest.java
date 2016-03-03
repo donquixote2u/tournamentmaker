@@ -266,7 +266,7 @@ public class MatchTest {
 		assertTrue(m4.isComplete());
 		m2.setTeam2Forfeit(true, true);
 		m2.end();
-		assertEquals(m2.recalculate().size(), 2);
+		assertEquals(m2.recalculate().size(), 1);
 		assertNull(m4.getToTeam1Match(false));
 	}
 	
@@ -355,7 +355,7 @@ public class MatchTest {
 		assertEquals(m5.finish().size(), 0);
 		m1.setTeam2Forfeit(true, false);
 		m1.end();
-		assertEquals(m1.recalculate().size(), 2);
+		assertEquals(m1.recalculate().size(), 1);
 		assertTrue(m2.isComplete());
 		assertTrue(m3.isComplete());
 		assertTrue(m4.isComplete());
@@ -453,11 +453,11 @@ public class MatchTest {
 		Match loser = new Match(null, null, 21 ,30, 2, 3);
 		match.setTeam2Forfeit(true, false);
 		match.addLoserMatch("0", loser);
-		assertEquals(match.recalculate().size(), 2);
+		assertEquals(match.recalculate().size(), 1);
 		loser.finish();
 		assertTrue(loser.isComplete());
 		match.setTeam2Forfeit(true, true);
-		assertEquals(match.recalculate().size(), 2);
+		assertEquals(match.recalculate().size(), 1);
 		assertEquals(loser.getTeam2(), null);
 	}
 	

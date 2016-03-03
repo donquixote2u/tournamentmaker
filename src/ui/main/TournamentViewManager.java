@@ -70,6 +70,7 @@ import ui.component.dialog.EventResultDialog;
 import ui.component.dialog.EventTeamSelector;
 import ui.component.editor.ButtonAction;
 import ui.component.editor.EventEditor;
+import ui.component.editor.InfoAction;
 import ui.component.editor.MatchEditor;
 import ui.component.editor.TeamEditor;
 import ui.component.editor.TimeEditor;
@@ -168,6 +169,12 @@ public class TournamentViewManager {
 		}
 		ui.setTitle(title);
 		ui.setEnabledForTournamentButtons(tournament != null);
+	}
+	
+	public void updateTournament() {
+		ui.setTitle(TournamentUI.APP_NAME + " - " + tournament.getName());
+		updateCurrentTab();
+		modified();
 	}
 	
 	public Tournament getTournament() {
@@ -324,7 +331,7 @@ public class TournamentViewManager {
 		return null;
 	}
 	
-	private boolean addMatchToCourtButton(Match match, CourtButton courtButton) {
+	private boolean addMatchToCourtButton(final Match match, CourtButton courtButton) {
 		if(courtButton != null && courtButton.addMatch(match)) {
 			if(match.getNextAvailableCourtOrder() > 0) {
 				tournament.setMatchOrder(match, 0);
@@ -337,6 +344,14 @@ public class TournamentViewManager {
 			((DefaultListModel<Match>) matches.getModel()).remove(index);
 			courtButton.updateCourtStatus();
 			switchToTab(TOURNAMENT_TAB, true);
+			// allow the ui to update before starting the print dialog
+			if(tournament.getAutoPrintMatches()) {
+				SwingUtilities.invokeLater(new Runnable() {
+					public void run() {
+						printMatch(match);
+					}
+				});
+			}
 			return true;
 		}
 		return false;
@@ -549,7 +564,7 @@ public class TournamentViewManager {
 						continue;
 					}
 					Date lastPlay = player.getLastMatchTime();
-					if(lastPlay != null && currentDate.getTime() - lastPlay.getTime() < tournament.getTimeBetweenMatches()) {
+					if(lastPlay != null && currentDate.getTime() - lastPlay.getTime() < tournament.getLongTimeBetweenMatches()) {
 						status += " " + player.getName() + " last played at " + GenericUtils.dateToString(lastPlay, "hh:mm a") + ".";
 						continue;
 					}
@@ -760,12 +775,12 @@ public class TournamentViewManager {
 		events.setBackground(backgroundColor);
 		events.setLayout(new BorderLayout());
 		final JScrollPane scrollPane = new JScrollPane();
-		eventCanvas = new EventBracketCanvas(50, 10, 10, 16.0f, 5, scrollPane);
+		eventCanvas = new EventBracketCanvas(36, 10, 10, 14.0f, 5, scrollPane);
 		eventCanvas.setBackground(backgroundColor);
 		scrollPane.setViewportView(eventCanvas);
 		scrollPane.setBorder(BorderFactory.createEmptyBorder());
-		scrollPane.getVerticalScrollBar().setUnitIncrement(50);
-		scrollPane.getHorizontalScrollBar().setUnitIncrement(50);
+		scrollPane.getVerticalScrollBar().setUnitIncrement(36);
+		scrollPane.getHorizontalScrollBar().setUnitIncrement(36);
 		events.add(scrollPane, BorderLayout.CENTER);
 		final JComboBox<GenericWrapper<EventPainter>> filter = new JComboBox<GenericWrapper<EventPainter>>();
 		filter.addActionListener(new ActionListener() {
@@ -793,28 +808,35 @@ public class TournamentViewManager {
 		});
 		events.getActionMap().put(UPDATE_ACTION, new AbstractAction() {
 			public void actionPerformed(ActionEvent event) {
+				boolean containsSelectedItem = false;
 				GenericWrapper<EventPainter> selected = (GenericWrapper<EventPainter>) filter.getSelectedItem();
 				filter.removeAllItems();
 				for(Event tEvent : tournament.getEvents()) {
 					if(tEvent.isStarted()) {
 						for(String level : tEvent.getDisplayLevels()) {
-							filter.addItem(new GenericWrapper<EventPainter>(tEvent.getEventPainter(level)));
+							for(EventPainter eventPainter : tEvent.getEventPainters(level, tournament.getDisableBracketPooling())) {
+								if(selected != null && eventPainter.equals(selected.getValue())) {
+									containsSelectedItem = true;
+								}
+								filter.addItem(new GenericWrapper<EventPainter>(eventPainter));
+							}
 						}
 					}
 				}
 				if(filter.getItemCount() > 0) {
 					filter.setEnabled(true);
-					if(selected == null) {
-						filter.setSelectedIndex(0);
-						return;
+					if(containsSelectedItem) {
+						filter.setSelectedItem(selected);
 					}
-					filter.setSelectedItem(selected);
+					else {
+						filter.setSelectedIndex(0);
+					}
+					filter.requestFocus();
 				}
 				else {
 					filter.setEnabled(false);
 					eventCanvas.setEventPainter(null);
 				}
-				filter.requestFocus();
 			}
 		});
 		events.getActionMap().put(NEW_ACTION, new AbstractAction() {
@@ -826,7 +848,9 @@ public class TournamentViewManager {
 					for(Event tEvent : tournament.getEvents()) {
 						for(String level : tEvent.getDisplayLevels()) {
 							if(tEvent.isStarted()) {
-								filter.addItem(new GenericWrapper<EventPainter>(tEvent.getEventPainter(level)));
+								for(EventPainter eventPainter : tEvent.getEventPainters(level, tournament.getDisableBracketPooling())) {
+									filter.addItem(new GenericWrapper<EventPainter>(eventPainter));
+								}
 							}
 						}
 					}
@@ -849,6 +873,11 @@ public class TournamentViewManager {
 		playersTable.setSelectionBackground(new Color(color.getRed(), color.getGreen(), color.getBlue(), 127));
 		playersTable.setSelectionForeground(Color.BLACK);
 		final GenericTableModel<Player> tableModel = new GenericTableModel<Player>(this);
+		tableModel.addColumn("Upcoming Matches", true, Player.class, new GenericValue<Player>() {
+			public Object getValue(Player player) {
+				return player;
+			}
+		});
 		tableModel.addColumn("Status", false, String.class, new GenericValue<Player>() {
 			public Object getValue(Player player) {
 				if(!player.isInGame() && player.isCheckedIn()) {
@@ -893,13 +922,13 @@ public class TournamentViewManager {
 		});
 		tableModel.addColumn("Checked In", true, Boolean.class, new GenericValue<Player>() {
 			public Object getValue(Player player) {
-				return player.isCheckedIn();
+				return player.getCheckInRawValue();
 			}
 			
 			public void setValue(Object value, Player player) {
 				player.setCheckedIn((Boolean) value);
 			}
-		}, Arrays.asList(0));
+		}, Arrays.asList(1));
 		tableModel.addColumn("Amount Paid", true, Double.class, new GenericValue<Player>() {
 			public Object getValue(Player player) {
 				return player.getAmountPaid();
@@ -1043,7 +1072,7 @@ public class TournamentViewManager {
 		});
 		TableColumnModel columnModel = playersTable.getColumnModel();
 		// setting the editor for gender
-		columnModel.getColumn(2).setCellEditor(new DefaultCellEditor(new JComboBox<String>(new String[]{"Male", "Female"})));
+		columnModel.getColumn(3).setCellEditor(new DefaultCellEditor(new JComboBox<String>(new String[]{"Male", "Female"})));
 		// setting the renderer for amount paid and amount due
 		DefaultTableCellRenderer currencyRenderer = new DefaultTableCellRenderer() {
 			public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
@@ -1059,24 +1088,41 @@ public class TournamentViewManager {
 				return this;
 			}
 		};
-		columnModel.getColumn(4).setCellRenderer(currencyRenderer);
 		columnModel.getColumn(5).setCellRenderer(currencyRenderer);
+		columnModel.getColumn(6).setCellRenderer(currencyRenderer);
 		// setting the editor for the player events
-		columnModel.getColumn(7).setCellEditor(new EventEditor(ui, this, "No valid events detected."));
+		columnModel.getColumn(8).setCellEditor(new EventEditor(ui, this, "No valid events detected."));
 		// setting the editor for the player level
 		final JComboBox<String> levelEditorCB = new JComboBox<String>();
-		columnModel.getColumn(8).setCellEditor(new DefaultCellEditor(levelEditorCB));
+		columnModel.getColumn(9).setCellEditor(new DefaultCellEditor(levelEditorCB));
 		// setting the editor for requested delay
-		columnModel.getColumn(15).setCellEditor(new TimeEditor(ui));
-		// setting the editor and renderer for delete
-		columnModel.getColumn(16).setCellRenderer(new DefaultTableCellRenderer() {
+		columnModel.getColumn(16).setCellEditor(new TimeEditor(ui));
+		// setting the editor and renderer for upcoming matches
+		columnModel.getColumn(0).setCellRenderer(new DefaultTableCellRenderer() {
 			private JButton button = new JButton("");
 			
 			public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
 				return button;
 			}
 		});
-		columnModel.getColumn(16).setCellEditor(new ButtonAction(ui) {
+		columnModel.getColumn(0).setCellEditor(new InfoAction(ui) {
+			protected String generateActionMessage(Object value) {
+				return tournament.getUpcomingMatchesForPlayer(((Player) value));
+			}
+
+			protected String generateActionTitle(Object value) {
+				return "Upcoming matches for " + ((Player) value).getName();
+			}
+		});
+		// setting the editor and renderer for delete
+		columnModel.getColumn(17).setCellRenderer(new DefaultTableCellRenderer() {
+			private JButton button = new JButton("");
+			
+			public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+				return button;
+			}
+		});
+		columnModel.getColumn(17).setCellEditor(new ButtonAction(ui) {
 			protected String generateActionMessage(Object value) {
 				return "Are you sure you want to delete " + ((Player) value).getName() + "?";
 			}
@@ -1449,7 +1495,7 @@ public class TournamentViewManager {
 					value += " " + getGameDescription(game);
 					value = value.trim();
 				}
-				if(match.getTeam1Forfeit() || match.getTeam2Forfeit()) {
+				if((match.getTeam1Forfeit() || match.getTeam2Forfeit()) && match.getTeam1() != null && match.getTeam2() != null) {
 					value += " " + WALKOVER;
 				}
 				return value;

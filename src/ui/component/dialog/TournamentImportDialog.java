@@ -24,6 +24,7 @@ import data.event.Event;
 import data.player.Player;
 import data.team.Team;
 import data.tournament.Tournament;
+import ui.main.TournamentUI;
 import ui.main.TournamentViewManager;
 import ui.util.GenericUtils;
 
@@ -112,6 +113,13 @@ public class TournamentImportDialog extends ImportDialog {
 			}
 		}
 		return true;
+	}
+	
+	public String checkImportCompatibility() {
+		if(tournament.getVersion() > Tournament.VERSION) {
+			return "The data file was created by a newer version of " + TournamentUI.APP_NAME + ".\nPlease open your current data file with the newer version and import again.";
+		}
+		return super.checkImportCompatibility();
 	}
 	
 	protected String importData() {

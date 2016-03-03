@@ -54,7 +54,7 @@ public class CurrentMatchQueue {
 			Match match = court.getCurrentMatch();
 			if(match != null) {
 				long duration = tournament.getEstimatedDuration(match);
-				Date endDate = new Date(match.getStart().getTime() + (duration > 0 ? duration : (tournament.getTimeBetweenMatches() + 1)));
+				Date endDate = new Date(match.getStart().getTime() + (duration > 0 ? duration : (tournament.getLongTimeBetweenMatches() + 1)));
 				if(currentDate.after(endDate)) {
 					endDate = currentDate;
 				}
@@ -122,7 +122,7 @@ public class CurrentMatchQueue {
 	
 	public Date add(Match match) {
 		long duration = tournament.getEstimatedDuration(match);
-		Date finishDate = new Date(currentDate.getTime() + (duration > 0 ? duration : (tournament.getTimeBetweenMatches() + 1)));
+		Date finishDate = new Date(currentDate.getTime() + (duration > 0 ? duration : (tournament.getLongTimeBetweenMatches() + 1)));
 		add(match, finishDate);
 		return finishDate;
 	}
@@ -141,7 +141,7 @@ public class CurrentMatchQueue {
 	}
 	
 	public void incrementCurrentDate() {
-		currentDate = new Date(currentDate.getTime() + Math.max(tournament.getTimeBetweenMatches(), tournament.getAverageMatchTime()) + 1);
+		currentDate = new Date(currentDate.getTime() + Math.max(tournament.getLongTimeBetweenMatches(), tournament.getAverageMatchTime()) + 1);
 	}
 	
 	private void add(Match match, Date endDate) {

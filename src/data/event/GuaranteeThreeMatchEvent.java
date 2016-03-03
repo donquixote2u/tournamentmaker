@@ -7,8 +7,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import data.event.painter.EventPainter;
-import data.event.painter.SingleEliminationEventPainter;
 import data.event.result.EventResult;
 import data.event.result.SingleEliminationEventResult;
 import data.match.Match;
@@ -99,10 +97,6 @@ public class GuaranteeThreeMatchEvent extends Event {
 			return null;
 		}
 		return Collections.unmodifiableList(list);
-	}
-	
-	public EventPainter getEventPainter(String level) {
-		return new SingleEliminationEventPainter(this, level);
 	}
 	
 	private void setSecondRoundLossDropDowns() {

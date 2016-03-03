@@ -90,10 +90,12 @@ public class TournamentUI extends JFrame {
 	public static final String APP_NAME = "Tournament Maker";
 	public static final String NEW_DISPLAY_TEXT = "New...";
 	private static final String FILE_EXTENSION = ".tmdat";
+	private static final int MAX_NUM_COURTS = 64;
+	private static final int MAX_NUM_TEAMS_IN_EVENT = 128;
 	private Map<String, Class<? extends Event>> events;
 	private Map<String, Class<? extends TeamModifier>> modifiers;
 	private FileChooser fileChooser, importFileChooser;
-	private JButton close, save, saveAs, addEvent, addPlayer, addTeam, importData, print;
+	private JButton edit, close, save, saveAs, addEvent, addPlayer, addTeam, importData, print;
 	private TournamentViewManager tournamentViewManager;
 	
 	public TournamentUI(Map<String, Class<? extends Event>> events, Map<String, Class<? extends TeamModifier>> modifiers) {
@@ -161,6 +163,7 @@ public class TournamentUI extends JFrame {
 	}
 	
 	public void setEnabledForTournamentButtons(boolean enabled) {
+		edit.setEnabled(enabled);
 		close.setEnabled(enabled);
 		save.setEnabled(enabled);
 		saveAs.setEnabled(enabled);
@@ -173,7 +176,7 @@ public class TournamentUI extends JFrame {
 	
 	public void print(Component component) {
 		try {
-			PrintUtils.printComponent(component);
+			PrintUtils.printComponent(this, component, tournamentViewManager.getTournament().getUseDefaultPrinter());
 		}
 		catch(Exception e) {
 			JOptionPane.showMessageDialog(this, e.getMessage(), "Print Error", JOptionPane.ERROR_MESSAGE);
@@ -234,6 +237,7 @@ public class TournamentUI extends JFrame {
 			(new File(file.getParent())).mkdirs();
 			ObjectOutput output = null;
 			try {
+				tournament.updateVersion();
 				output = new ObjectOutputStream(new BufferedOutputStream(new FileOutputStream(file, false)));
 				output.writeObject(tournament);
 				output.close();
@@ -280,16 +284,16 @@ public class TournamentUI extends JFrame {
 		return null;
 	}
 	
-	private void openNewTournamentDialog() {
-		final JDialog dialog = new JDialog(this, "New Tournament");
+	private void openTournamentDialog(final boolean edit) {
+		final JDialog dialog = new JDialog(this, edit ? "Edit Tournament" : "New Tournament");
 		dialog.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
 		dialog.setModalityType(Dialog.ModalityType.APPLICATION_MODAL);
 		dialog.setResizable(false);
 		dialog.getContentPane().setLayout(new BorderLayout());
 		final MessageLabel message = new MessageLabel();
 		dialog.add(message, BorderLayout.PAGE_START);
-		JPanel panel = new JPanel(new GridBagLayout());
-		panel.add(new JLabel("Name"), GenericUtils.createGridBagConstraint(0, 0, 0.3));
+		JPanel basic = new JPanel(new GridBagLayout());
+		basic.add(new JLabel("Name"), GenericUtils.createGridBagConstraint(0, 0, 0.3));
 		final TextFieldWithErrorMessage name = new TextFieldWithErrorMessage(15);
 		name.setErrorMessage("Tournament name can not be empty.");
 		final Border defaultBorder = name.getBorder();
@@ -308,17 +312,25 @@ public class TournamentUI extends JFrame {
 				return false;
 			}
 		});
-		panel.add(name, GenericUtils.createGridBagConstraint(1, 0, 0.7));
-		panel.add(new JLabel("Levels (Comma Separated List)"), GenericUtils.createGridBagConstraint(0, 1, 0.3));
+		if(edit) {
+			name.setText(tournamentViewManager.getTournament().getName());
+		}
+		basic.add(name, GenericUtils.createGridBagConstraint(1, 0, 0.7));
+		basic.add(new JLabel("Levels (Comma Separated List)"), GenericUtils.createGridBagConstraint(0, 1, 0.3));
 		final TextFieldWithErrorMessage levels = new TextFieldWithErrorMessage(15);
-		panel.add(levels, GenericUtils.createGridBagConstraint(1, 1, 0.7));
-		panel.add(new JLabel("Number Of Courts"), GenericUtils.createGridBagConstraint(0, 2, 0.3));
+		if(edit) {
+			levels.setText(tournamentViewManager.getTournament().getLevels().toString());
+			levels.setEnabled(false);
+		}
+		basic.add(levels, GenericUtils.createGridBagConstraint(1, 1, 0.7));
+		basic.add(new JLabel("Number Of Courts"), GenericUtils.createGridBagConstraint(0, 2, 0.3));
 		final TextFieldWithErrorMessage courts = new TextFieldWithErrorMessage(15);
-		courts.setErrorMessage("There must be at least one court.");
+		courts.setErrorMessage("Number of courts must be between 1 and " + MAX_NUM_COURTS + " (inclusive).");
 		courts.setInputVerifier(new InputVerifier() {
 			public boolean verify(JComponent input) {
 				try {
-					if(Integer.parseInt(((JTextField) input).getText().trim()) > 0) {
+					int number = Integer.parseInt(((JTextField) input).getText().trim());
+					if(number > 0 && number <= MAX_NUM_COURTS) {
 						message.reset();
 						input.setBorder(defaultBorder);
 						return true;
@@ -330,8 +342,12 @@ public class TournamentUI extends JFrame {
 				return false;
 			}
 		});
-		panel.add(courts, GenericUtils.createGridBagConstraint(1, 2, 0.7));
-		panel.add(new JLabel("Rest Between Matches (Minutes)"), GenericUtils.createGridBagConstraint(0, 3, 0.3));
+		if(edit) {
+			courts.setText(Integer.toString(tournamentViewManager.getTournament().getCourts().size()));
+			courts.setEnabled(false);
+		}
+		basic.add(courts, GenericUtils.createGridBagConstraint(1, 2, 0.7));
+		basic.add(new JLabel("Rest Between Matches (Minutes)"), GenericUtils.createGridBagConstraint(0, 3, 0.3));
 		final TextFieldWithErrorMessage rest = new TextFieldWithErrorMessage(15);
 		rest.setErrorMessage("Rest between matches must be a number.");
 		rest.setInputVerifier(new InputVerifier() {
@@ -350,13 +366,46 @@ public class TournamentUI extends JFrame {
 				return false;
 			}
 		});
-		panel.add(rest, GenericUtils.createGridBagConstraint(1, 3, 0.7));
-		dialog.getContentPane().add(panel, BorderLayout.CENTER);
+		if(edit) {
+			rest.setText(Integer.toString(tournamentViewManager.getTournament().getTimeBetweenMatches()));
+		}
+		basic.add(rest, GenericUtils.createGridBagConstraint(1, 3, 0.7));
+		JPanel advanced = new JPanel(new GridBagLayout());
+		final JCheckBox playerStatus = new JCheckBox("Allow match start without player check in");
+		if(edit) {
+			playerStatus.setSelected(tournamentViewManager.getTournament().getIgnorePlayerStatus());
+		}
+		advanced.add(playerStatus, GenericUtils.createGridBagConstraint(0, 0, 1.0));
+		final JCheckBox showMatches = new JCheckBox("Show all matches");
+		if(edit) {
+			showMatches.setSelected(tournamentViewManager.getTournament().getShowAllMatches());
+		}
+		advanced.add(showMatches, GenericUtils.createGridBagConstraint(0, 1, 1.0));
+		final JCheckBox defaultPrinter = new JCheckBox("Print directly to default printer");
+		if(edit) {
+			defaultPrinter.setSelected(tournamentViewManager.getTournament().getUseDefaultPrinter());
+		}
+		advanced.add(defaultPrinter, GenericUtils.createGridBagConstraint(0, 2, 1.0));
+		final JCheckBox autoPrint = new JCheckBox("Automatically print match after match start");
+		if(edit) {
+			autoPrint.setSelected(tournamentViewManager.getTournament().getAutoPrintMatches());
+		}
+		advanced.add(autoPrint, GenericUtils.createGridBagConstraint(0, 3, 1.0));
+		final JCheckBox disablePooling = new JCheckBox("Draw all matches from a bracket together");
+		if(edit) {
+			disablePooling.setSelected(tournamentViewManager.getTournament().getDisableBracketPooling());
+		}
+		advanced.add(disablePooling, GenericUtils.createGridBagConstraint(0, 4, 1.0));
+		final JTabbedPane root = new JTabbedPane(JTabbedPane.TOP, JTabbedPane.SCROLL_TAB_LAYOUT);
+		root.add("Basic", basic);
+		root.add("Advanced", advanced);
+		dialog.getContentPane().add(root, BorderLayout.CENTER);
 		JPanel buttons = new JPanel(new FlowLayout());
 		JButton ok = new JButton("OK");
 		ok.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent event) {
 				message.reset();
+				root.setSelectedIndex(0);
 				if(!name.getInputVerifier().verify(name)) {
 					name.requestFocus();
 					return;
@@ -384,8 +433,26 @@ public class TournamentUI extends JFrame {
 					tRest = Integer.parseInt(restText);
 				}
 				dialog.dispose();
-				tournamentViewManager.setTournament(new Tournament(tName, tLevels, tCourts, tRest));
-				TournamentUtils.resetMatchIndex();
+				if(edit) {
+					tournamentViewManager.getTournament().setName(tName);
+					tournamentViewManager.getTournament().setTimeBetweenMatches(tRest);
+					tournamentViewManager.getTournament().setIgnorePlayerStatus(playerStatus.isSelected());
+					tournamentViewManager.getTournament().setShowAllMatches(showMatches.isSelected());
+					tournamentViewManager.getTournament().setUseDefaultPrinter(defaultPrinter.isSelected());
+					tournamentViewManager.getTournament().setAutoPrintMatches(autoPrint.isSelected());
+					tournamentViewManager.getTournament().setDisableBracketPooling(disablePooling.isSelected());
+					tournamentViewManager.updateTournament();
+				}
+				else {
+					Tournament tournament = new Tournament(tName, tLevels, tCourts, tRest);
+					tournament.setIgnorePlayerStatus(playerStatus.isSelected());
+					tournament.setShowAllMatches(showMatches.isSelected());
+					tournament.setUseDefaultPrinter(defaultPrinter.isSelected());
+					tournament.setAutoPrintMatches(autoPrint.isSelected());
+					tournament.setDisableBracketPooling(disablePooling.isSelected());
+					tournamentViewManager.setTournament(tournament);
+					TournamentUtils.resetMatchIndex();
+				}
 			}
 		});
 		buttons.add(ok);
@@ -483,10 +550,13 @@ public class TournamentUI extends JFrame {
 		levels.setVisible(!tournamentViewManager.getTournament().getLevels().isEmpty());
 		panel.add(levels, GenericUtils.createGridBagConstraint(1, 3, 0.7));
 		panel.add(new JLabel("Number Of Teams"), GenericUtils.createGridBagConstraint(0, 4, 0.3));
-		InputVerifier numberVerifier = new InputVerifier() {
+		final TextFieldWithErrorMessage numTeams = new TextFieldWithErrorMessage(15);
+		numTeams.setErrorMessage("Number of teams must be between 1 and " + MAX_NUM_TEAMS_IN_EVENT + " (inclusive).");
+		numTeams.setInputVerifier(new InputVerifier() {
 			public boolean verify(JComponent input) {
 				try {
-					if(Integer.parseInt(((JTextField) input).getText().trim()) > 0) {
+					int number = Integer.parseInt(((JTextField) input).getText().trim());
+					if(number > 0 && number <= MAX_NUM_TEAMS_IN_EVENT) {
 						message.reset();
 						input.setBorder(defaultBorder);
 						return true;
@@ -497,10 +567,7 @@ public class TournamentUI extends JFrame {
 				input.setBorder(new LineBorder(Color.RED, 1));
 				return false;
 			}
-		};
-		final TextFieldWithErrorMessage numTeams = new TextFieldWithErrorMessage(15);
-		numTeams.setErrorMessage("There must be at least one team.");
-		numTeams.setInputVerifier(numberVerifier);
+		});
 		panel.add(numTeams, GenericUtils.createGridBagConstraint(1, 4, 0.7));
 		panel.add(new JLabel("Minimum Winning Score"), GenericUtils.createGridBagConstraint(0, 5, 0.3));
 		InputVerifier scoreVerifier = new InputVerifier() {
@@ -531,7 +598,21 @@ public class TournamentUI extends JFrame {
 		panel.add(new JLabel("Win By"), GenericUtils.createGridBagConstraint(0, 7, 0.3));
 		final TextFieldWithErrorMessage winBy = new TextFieldWithErrorMessage(15);
 		winBy.setErrorMessage("Games must be won by at least one point.");
-		winBy.setInputVerifier(numberVerifier);
+		winBy.setInputVerifier(new InputVerifier() {
+			public boolean verify(JComponent input) {
+				try {
+					if(Integer.parseInt(((JTextField) input).getText().trim()) > 0) {
+						message.reset();
+						input.setBorder(defaultBorder);
+						return true;
+					}
+				}
+				catch(Exception e) {}
+				message.error(((TextFieldWithErrorMessage) input).getErrorMessage());
+				input.setBorder(new LineBorder(Color.RED, 1));
+				return false;
+			}
+		});
 		panel.add(winBy, GenericUtils.createGridBagConstraint(1, 7, 0.7));
 		panel.add(new JLabel("Best Of"),  GenericUtils.createGridBagConstraint(0, 8, 0.3));
 		final TextFieldWithErrorMessage bestOf = new TextFieldWithErrorMessage(15);
@@ -1293,19 +1374,14 @@ public class TournamentUI extends JFrame {
 		newTournament.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent event) {
 				if(checkForSaveAction()) {
-					openNewTournamentDialog();
+					openTournamentDialog(false);
 				}
 			}
 		});
 		newTournament.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_N, InputEvent.CTRL_DOWN_MASK), "click");
 		newTournament.getActionMap().put("click", new AbstractAction() {
 			public void actionPerformed(ActionEvent event) {
-				if(tournamentViewManager.getTournament() == null) {
-					newTournament.doClick();
-				}
-				else {
-					addEvent.doClick();
-				}
+				newTournament.doClick();
 			}
 		});
 		newTournament.setToolTipText("New Tournament (Ctrl + N)");
@@ -1339,7 +1415,7 @@ public class TournamentUI extends JFrame {
 								JOptionPane.showMessageDialog(TournamentUI.this, "Old data file detected. Modifying this file is not recommended.", "Warning", JOptionPane.WARNING_MESSAGE);
 							}
 							else if(Tournament.VERSION < tournament.getVersion()) {
-								JOptionPane.showMessageDialog(TournamentUI.this, "This data file was created by a newer version of " + APP_NAME + ". Please use the new version to access this file.", "Warning", JOptionPane.WARNING_MESSAGE);
+								JOptionPane.showMessageDialog(TournamentUI.this, "This data file was created by a newer version of " + APP_NAME + ".\nPlease use the new version to access this file.", "Warning", JOptionPane.WARNING_MESSAGE);
 							}
 						}
 						catch(Exception e) {
@@ -1367,6 +1443,15 @@ public class TournamentUI extends JFrame {
 		});
 		openTournament.setToolTipText("Open Tournament (Ctrl + O)");
 		toolbar.add(openTournament);
+		edit = new JButton(new ImageIcon(Images.EDIT));
+		edit.setFocusable(false);
+		edit.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent event) {
+				openTournamentDialog(true);
+			}
+		});
+		edit.setToolTipText("Edit Tournament");
+		toolbar.add(edit);
 		close = new JButton(new ImageIcon(Images.CLOSE));
 		close.setFocusable(false);
 		close.addActionListener(new ActionListener() {
@@ -1417,7 +1502,7 @@ public class TournamentUI extends JFrame {
 				}
 			}
 		});
-		addEvent.setToolTipText("Add Event (Ctrl + N)");
+		addEvent.setToolTipText("Add Event");
 		toolbar.add(addEvent);
 		addPlayer = new JButton(new ImageIcon(Images.ADD_PLAYER));
 		addPlayer.setFocusable(false);
@@ -1450,6 +1535,11 @@ public class TournamentUI extends JFrame {
 				}
 				ImportDialog dialog = new TournamentImportDialog(TournamentUI.this, tournamentViewManager, file);
 				if(dialog.getResult()) {
+					return;
+				}
+				String message = dialog.checkImportCompatibility();
+				if(message != null) {
+					JOptionPane.showMessageDialog(TournamentUI.this, message, "Import Error", JOptionPane.ERROR_MESSAGE);
 					return;
 				}
 				dialog = new CSVImportDialog(TournamentUI.this, tournamentViewManager, file);

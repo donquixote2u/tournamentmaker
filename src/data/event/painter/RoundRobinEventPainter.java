@@ -4,10 +4,12 @@ import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
-import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
-import data.event.Event;
+import data.event.RoundRobinEvent;
 import data.match.Match;
 import data.team.Team;
 
@@ -16,9 +18,11 @@ public class RoundRobinEventPainter extends EventPainter {
 	private static final String TEAM_MESSAGE = "Bold team's score shown first";
 	private static final String WINNER = "Won";
 	private static final String LOSER = "Lost";
+	private int numberOfDuplicateMatches;
 	
-	public RoundRobinEventPainter(Event event, String level) {
+	public RoundRobinEventPainter(RoundRobinEvent event, String level) {
 		super(event, level);
+		numberOfDuplicateMatches = event.getNumberOfDuplicateMatches();
 	}
 	
 	public Dimension getCanvasSize() {
@@ -28,7 +32,7 @@ public class RoundRobinEventPainter extends EventPainter {
 	public void paint(int matchHeight, int xPadding, int yPadding, float fontSize, int textPadding, Graphics g) {
 		Font titleFont = g.getFont().deriveFont(fontSize + 4.0f).deriveFont(Font.BOLD);
 		FontMetrics metrics = g.getFontMetrics(titleFont);
-		String title = getEvent().getName() + " - " + getLevel();
+		String title = getTitle();
 		int titleHeight = metrics.getHeight();
 		int titleWidth = metrics.stringWidth(title);
 		g.setFont(g.getFont().deriveFont(fontSize));
@@ -37,26 +41,49 @@ public class RoundRobinEventPainter extends EventPainter {
 		int matchWidth = teamMessageWidth;
 		// calculating the match width
 		metrics = g.getFontMetrics(g.getFont().deriveFont(Font.BOLD));
-		HashMap<Team, Match[]> matches = new HashMap<Team, Match[]>();
 		List<Team> teams = getEvent().getTeams();
+		Match[][][] matches = new Match[teams.size()][teams.size()][numberOfDuplicateMatches];
 		for(int i = 0; i < teams.size(); ++i) {
-			matches.put(teams.get(i), new Match[teams.size()]);
 			int width = metrics.stringWidth(getTeamString(teams.get(i)));
 			if(width > matchWidth) {
 				matchWidth = width;
 			}
 		}
 		metrics = g.getFontMetrics(g.getFont());
-		for(Match match : getEvent().getAllMatches()) {
-			matches.get(match.getTeam1())[teams.indexOf(match.getTeam2())] = match;
-			matches.get(match.getTeam2())[teams.indexOf(match.getTeam1())] = match;
-			int width = metrics.stringWidth(getScoreString(match));
-			if(width > matchWidth) {
-				matchWidth = width;
+		// take advantage of the fact round robin events always generate their matches in order
+		ArrayList<Match> allMatches = new ArrayList<Match>(getEvent().getAllMatches());
+		Collections.sort(allMatches, new Comparator<Match>() {
+			public int compare(Match m1, Match m2) {
+				return m1.getIndex() - m2.getIndex();
+			}
+		});
+		Comparator<Match> sortByFinished = new Comparator<Match>() {
+			public int compare(Match m1, Match m2) {
+				int m1Finished = m1.getWinner() != null ? 1 : 0;
+				int m2Finished = m2.getWinner() != null ? 1 : 0;
+				return m2Finished - m1Finished;
+			}
+		};
+		int index = 0;
+		for(int i = 0; i < teams.size(); ++i) {
+			for(int j = i + 1; j < teams.size(); ++j) {
+				ArrayList<Match> headToHeadMatches = new ArrayList<Match>();
+				for(int count = 0; count < numberOfDuplicateMatches; ++count) {
+					Match match = allMatches.get(index++);
+					int width = metrics.stringWidth(getScoreString(match));
+					if(width > matchWidth) {
+						matchWidth = width;
+					}
+					headToHeadMatches.add(match);
+				}
+				Collections.sort(headToHeadMatches, sortByFinished);
+				for(int count = 0; count < numberOfDuplicateMatches; ++count) {
+					matches[i][j][count] = headToHeadMatches.get(count);
+				}
 			}
 		}
 		matchWidth += 2 * textPadding;
-		dimension = new Dimension(Math.max((teams.size() + 1) * matchWidth, titleWidth) + (2 * xPadding), ((teams.size() + 1) * matchHeight) + (3 * yPadding) + titleHeight);
+		dimension = new Dimension(Math.max((teams.size() + 1) * matchWidth, titleWidth) + ((teams.size() + 1) * 2 * xPadding), ((teams.size() + 1) * matchHeight * numberOfDuplicateMatches) + (4 * yPadding) + titleHeight);
 		// draw the title
 		Font font = g.getFont();
 		g.setFont(titleFont);
@@ -68,22 +95,22 @@ public class RoundRobinEventPainter extends EventPainter {
 			int xStart = (i * matchWidth) + xPadding;
 			int xEnd = ((i + 1) * matchWidth) + xPadding;
 			for(int j = 0; j <= teams.size(); ++j) {
-				int yStart = (j * matchHeight) + (2 * yPadding) + titleHeight;
-				int yEnd = ((j + 1) * matchHeight) + (2 * yPadding) + titleHeight;
+				int yStart = (j * matchHeight * numberOfDuplicateMatches) + (2 * yPadding) + titleHeight;
+				int yEnd = ((j + 1) * matchHeight * numberOfDuplicateMatches) + (2 * yPadding) + titleHeight;
 				g.drawLine(xStart, yEnd, xEnd, yEnd);
 				g.drawLine(xEnd, yStart, xEnd, yEnd);
 			}
 		}
 		// draw the teams
 		int fontHeight = metrics.getHeight();
-		int y0 = ((matchHeight + (4 * yPadding) + (2 * titleHeight)) / 2) + (fontHeight / 2) - textPadding;
+		int y0 = ((matchHeight * numberOfDuplicateMatches + (4 * yPadding) + (2 * titleHeight)) / 2) + (fontHeight / 2) - textPadding;
 		g.drawString(TEAM_MESSAGE, ((matchWidth + (2 * xPadding)) / 2) - (teamMessageWidth / 2), y0);
 		g.setFont(font.deriveFont(Font.BOLD));
 		metrics = g.getFontMetrics(g.getFont());
 		int boldFontHeight = metrics.getHeight();
 		for(int i = 0; i < teams.size(); ++i) {
-			int y1 = ((i + 1) * matchHeight) + (2 * yPadding) + titleHeight;
-			int y2 = ((i + 2) * matchHeight) + (2 * yPadding) + titleHeight;
+			int y1 = ((i + 1) * matchHeight * numberOfDuplicateMatches) + (2 * yPadding) + titleHeight;
+			int y2 = ((i + 2) * matchHeight * numberOfDuplicateMatches) + (2 * yPadding) + titleHeight;
 			int half = (y1 + y2) / 2;
 			g.drawString(getTeamString(teams.get(i)), xPadding + textPadding, half + (boldFontHeight / 2) - textPadding);
 		}
@@ -93,14 +120,25 @@ public class RoundRobinEventPainter extends EventPainter {
 		}
 		// draw the matches
 		for(int i = 0; i < teams.size(); ++i) {
-			Team team = teams.get(i);
-			int y = y0 + ((i + 1) * matchHeight);
-			for(int j = 0; j < teams.size(); ++j) {
-				if(i == j) {
+			Team team1 = teams.get(i);
+			if(team1 == null) {
+				continue;
+			}
+			for(int j = i + 1; j < teams.size(); ++j) {
+				Team team2 = teams.get(j);
+				if(team2 == null) {
 					continue;
 				}
-				int x = ((j + 1) * matchWidth) + xPadding + (2 * textPadding);
-				g.drawString(getScoreString(matches.get(team)[j], team), x, y);
+				int x1 = ((j + 1) * matchWidth) + xPadding + (2 * textPadding);
+				int x2 = ((i + 1) * matchWidth) + xPadding + (2 * textPadding);
+				for(int count = 0; count < numberOfDuplicateMatches; ++count) {
+					int yStart = ((i + 1) * matchHeight * numberOfDuplicateMatches) + (2 * yPadding) + titleHeight + (matchHeight * count);
+					int yEnd = yStart + matchHeight;
+					g.drawString(getScoreString(matches[i][j][count], team1), x1, ((yStart + yEnd) / 2) + (fontHeight / 2) - textPadding);
+					yStart = ((j + 1) * matchHeight * numberOfDuplicateMatches) + (2 * yPadding) + titleHeight + (matchHeight * count);
+					yEnd = yStart + matchHeight;
+					g.drawString(getScoreString(matches[i][j][count], team2), x2, ((yStart + yEnd) / 2) + (fontHeight / 2) - textPadding);
+				}
 			}
 		}
 	}

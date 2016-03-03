@@ -21,7 +21,7 @@ public class RoundRobinEventResult extends EventResult {
 		calculateWinners(matches);
 	}
 	
-	public void calculateWinners(List<Match> matches) {
+	private void calculateWinners(List<Match> matches) {
 		clearWinners();
 		if(matches == null || matches.isEmpty()) {
 			return;
@@ -149,10 +149,9 @@ public class RoundRobinEventResult extends EventResult {
 		return results;
 	}
 	
-	@SuppressWarnings("unused")
 	private class ResultData {
 		Team team;		
-		int matchesWon, matchesPlayed, gamesWon, gamesPlayed, pointsWon, pointsPlayed;
+		int matchesWon, gamesWon, gamesPlayed, pointsWon, pointsPlayed;
 		Set<Team> teamsBeaten;
 		
 		public ResultData(Team team) {
@@ -165,7 +164,6 @@ public class RoundRobinEventResult extends EventResult {
 				teamsBeaten.add(match.getLoser());
 				++matchesWon;
 			}
-			++matchesPlayed;
 			for(Game game : match.getGames()) {
 				if(game.getWinner() != null) {
 					++gamesPlayed;

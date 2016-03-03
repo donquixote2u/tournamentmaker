@@ -41,6 +41,9 @@ public abstract class ImportDialog extends JDialog {
 		catch(Exception e) {
 			result = false;
 		}
+		if(checkImportCompatibility() != null) {
+			result = false;
+		}
 		if(!result) {
 			dispose();
 			return;
@@ -117,6 +120,10 @@ public abstract class ImportDialog extends JDialog {
 	
 	protected TournamentViewManager getTournamentViewManager() {
 		return manager;
+	}
+	
+	public String checkImportCompatibility() {
+		return null;
 	}
 	
 	private void showResultDialog(String result, String title, boolean showPrint) {

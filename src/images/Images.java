@@ -10,6 +10,7 @@ public class Images {
 	public static final URL LOGO_48 = Images.class.getResource("logo-48.png");
 	public static final URL NEW = Images.class.getResource("new32.png");
 	public static final URL OPEN = Images.class.getResource("open32.png");
+	public static final URL EDIT = Images.class.getResource("edit32.png");
 	public static final URL CLOSE = Images.class.getResource("close32.png");
 	public static final URL SAVE = Images.class.getResource("save32.png");
 	public static final URL SAVE_AS = Images.class.getResource("saveAs32.png");

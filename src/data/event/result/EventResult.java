@@ -6,7 +6,6 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 
-import data.match.Match;
 import data.team.Team;
 
 public abstract class EventResult {
@@ -33,7 +32,11 @@ public abstract class EventResult {
 		winners.clear();
 	}
 	
-	public void addWinners(List<Team> teams) {
+	public String getDescription() {
+		return description;
+	}
+	
+	protected void addWinners(List<Team> teams) {
 		// checking for nulls and duplicates
 		HashSet<Team> set = new HashSet<Team>(teams);
 		set.remove(null);
@@ -72,10 +75,4 @@ public abstract class EventResult {
 			winners.add(newTeams);
 		}
 	}
-	
-	public String getDescription() {
-		return description;
-	}
-	
-	public abstract void calculateWinners(List<Match> matches);
 }

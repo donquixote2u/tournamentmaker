@@ -14,6 +14,7 @@ import javax.swing.JFrame;
 import javax.swing.JScrollPane;
 import javax.swing.WindowConstants;
 
+import org.junit.Before;
 import org.junit.Test;
 
 import ui.component.panel.EventBracketCanvas;
@@ -24,6 +25,13 @@ import data.team.Team;
 import data.tournament.Tournament;
 
 public class EventStressTest {
+	private int numberOfLosses;
+	
+	@Before
+	public void setUpBeforeTest() {
+		numberOfLosses = 0;
+	}
+	
 	@Test
 	public void GuaranteeThreeMatchEventStressTest() {
 		runStressTest(new GuaranteeThreeMatchEvent("Test", new ArrayList<String>(), new BaseModifierTeam(1, "test"), 32, 21, 30, 2, 3), 3);
@@ -44,7 +52,18 @@ public class EventStressTest {
 		runStressTest(new RoundRobinEvent("Test", new ArrayList<String>(), new BaseModifierTeam(1, "test"), 6, 21, 30, 2, 3), 5);
 	}
 	
-	private static void runStressTest(final Event event, int numberOfGames) {
+	@Test
+	public void DoubleRoundRobinEventStressTest() {
+		runStressTest(new DoubleRoundRobinEvent("Test", new ArrayList<String>(), new BaseModifierTeam(1, "test"), 6, 21, 30, 2, 3), 10);
+	}
+	
+	@Test
+	public void DoubleEliminationEventStressTest() {
+		numberOfLosses = 2;
+		runStressTest(new DoubleEliminationEvent("Test", new ArrayList<String>(), new BaseModifierTeam(1, "test"), 32, 21, 30, 2, 3), 2);
+	}
+	
+	private void runStressTest(final Event event, int numberOfGames) {
 		try {
 			stressTestEvent(event, numberOfGames);
 		}
@@ -69,7 +88,7 @@ public class EventStressTest {
 		}
 	}
 	
-	private static void stressTestEvent(Event event, int numberOfGames) {
+	private void stressTestEvent(Event event, int numberOfGames) {
 		// set up the tournament
 		Tournament tournament = new Tournament("Test", new ArrayList<String>(), 1, 0);
 		assertTrue(tournament.addEvent(event));
@@ -94,54 +113,63 @@ public class EventStressTest {
 			event.setFilterTeamByLevel(false);
 			assertTrue(event.canStart());
 			tournament.startEvent(event);
-			assertFalse(event.isComplete());
-			// run through all the matches
-			List<Match> matches;
-			while(!(matches = tournament.getMatches()).isEmpty()) {
-				Match match;
-				int index = ((int) (Math.random() * 100)) % matches.size();
-				while(!(match = matches.get(index % matches.size())).canStartMatch()) {
-					if(++index > 2 * matches.size()) {
-						throw new RuntimeException("Unable to complete event.");
-					}
+			int notNullTeamCount = 0;
+			for(Team team : event.getTeams()) {
+				if(team != null) {
+					++notNullTeamCount;
 				}
-				assertTrue(match.canStartMatch());
-				tournament.getCourts().get(0).setMatch(match);
-				tournament.removeMatch(match);
-				if(((int) (Math.random() * 100)) < 8) {
-					boolean withdrawTeam = ((int) (Math.random() * 100)) < 30;
-					if(((int) (Math.random() * 100)) < 50) {
-						match.setTeam1Forfeit(true, withdrawTeam);
+			}
+			if(notNullTeamCount > 1) {
+				assertFalse(event.isComplete());
+				// run through all the matches
+				List<Match> matches;
+				while(!(matches = tournament.getMatches()).isEmpty()) {
+					Match match;
+					int index = ((int) (Math.random() * 100)) % matches.size();
+					while(!(match = matches.get(index % matches.size())).canStartMatch()) {
+						if(++index > 2 * matches.size()) {
+							throw new RuntimeException("Unable to complete event.");
+						}
 					}
-					else {
-						match.setTeam2Forfeit(true, withdrawTeam);
-					}
-				}
-				else {
-					for(int j = 0; j < match.getGames().size(); ++j) {
-						if(j % 2 == 0) {
-							match.getGames().get(j).setTeam1Score(((int) (Math.random() * 100)) % event.getMaxScore());
+					assertTrue(match.canStartMatch());
+					tournament.getCourts().get(0).setMatch(match);
+					tournament.removeMatch(match);
+					if(((int) (Math.random() * 100)) < 8) {
+						boolean withdrawTeam = ((int) (Math.random() * 100)) < 30;
+						if(((int) (Math.random() * 100)) < 50) {
+							match.setTeam1Forfeit(true, withdrawTeam);
 						}
 						else {
-							match.getGames().get(j).setTeam2Score(((int) (Math.random() * 100)) % event.getMaxScore());
+							match.setTeam2Forfeit(true, withdrawTeam);
 						}
 					}
+					else {
+						for(int j = 0; j < match.getGames().size(); ++j) {
+							if(j % 2 == 0) {
+								match.getGames().get(j).setTeam1Score(((int) (Math.random() * 100)) % event.getMaxScore());
+							}
+							else {
+								match.getGames().get(j).setTeam2Score(((int) (Math.random() * 100)) % event.getMaxScore());
+							}
+						}
+					}
+					tournament.getCourts().get(0).setMatch(null);
+					tournament.getCourts().get(0).getPreviousMatches().remove(match);
+					Set<Match> newMatches;
+					try {
+						newMatches = match.finish();
+					}
+					catch(Exception e) {
+						System.out.println(match + ", id: " + match.getIndex() + " on cycle #" + i);
+						throw new RuntimeException(e);
+					}
+					assertNotNull(newMatches);
+					tournament.addCompletedMatch(match);
+					tournament.addMatches(newMatches);
 				}
-				tournament.getCourts().get(0).setMatch(null);
-				tournament.getCourts().get(0).getPreviousMatches().remove(match);
-				Set<Match> newMatches;
-				try {
-					newMatches = match.finish();
-				}
-				catch(Exception e) {
-					System.out.println(match + ", id: " + match.getIndex() + " on cycle #" + i);
-					throw new RuntimeException(e);
-				}
-				assertNotNull(newMatches);
-				tournament.addCompletedMatch(match);
-				tournament.addMatches(newMatches);
 			}
 			// make sure every team played the required number of games
+			boolean hasFewer = false;
 			for(Team team : event.getTeams()) {
 				if(team == null || team.isWithdrawn()) {
 					continue;
@@ -160,6 +188,13 @@ public class EventStressTest {
 					}
 				}
 				assertTrue(count >= numberOfGames);
+				if(numberOfLosses > 0) {
+					if(!hasFewer && team.getMatchesLost() < numberOfLosses) {
+						hasFewer = true;
+						continue;
+					}
+					assertEquals(team.getMatchesLost(), numberOfLosses);
+				}
 			}
 			assertTrue(event.isComplete());
 			// reset everything

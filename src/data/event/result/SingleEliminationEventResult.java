@@ -12,7 +12,7 @@ public class SingleEliminationEventResult extends EventResult {
 		calculateWinners(matches);
 	}
 
-	public void calculateWinners(List<Match> matches) {
+	private void calculateWinners(List<Match> matches) {
 		clearWinners();
 		if(matches == null || matches.size() == 0) {
 			return;

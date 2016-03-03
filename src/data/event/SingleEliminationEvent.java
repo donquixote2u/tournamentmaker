@@ -4,8 +4,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import data.event.painter.EventPainter;
-import data.event.painter.SingleEliminationEventPainter;
 import data.event.result.EventResult;
 import data.event.result.SingleEliminationEventResult;
 import data.match.Match;
@@ -39,16 +37,7 @@ public class SingleEliminationEvent extends Event {
 	
 	protected List<String> generateDisplayLevels(List<String> levels) {
 		List<String> displayLevels = new ArrayList<String>();
-		String displayLevel  = "";
-		for(String level : levels) {
-			displayLevel += level + ", ";
-		}
-		if(displayLevel.isEmpty()) {
-			displayLevel = "All";
-		}
-		else {
-			displayLevel = displayLevel.substring(0, displayLevel.length() - 2);
-		}
+		String displayLevel  = generateSingleDisplayLevelString();
 		displayLevels.add(displayLevel);
 		return displayLevels;
 	}
@@ -65,9 +54,5 @@ public class SingleEliminationEvent extends Event {
 			return null;
 		}
 		return Collections.unmodifiableList(matches);
-	}
-	
-	public EventPainter getEventPainter(String level) {
-		return new SingleEliminationEventPainter(this, level);
 	}
 }

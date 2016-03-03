@@ -12,6 +12,7 @@ import data.tournament.TournamentUtils;
 public class Player implements Serializable {
 	private static final long serialVersionUID = -96926304857187476L;
 	private transient Date estimatedDate;
+	private transient boolean ignoreCheckedIn;
 	private String name;
 	private String address, email, phoneNumber;
 	private boolean isMale;
@@ -105,11 +106,19 @@ public class Player implements Serializable {
 	}
 
 	public boolean isCheckedIn() {
+		return ignoreCheckedIn || checkedIn;
+	}
+	
+	public boolean getCheckInRawValue() {
 		return checkedIn;
 	}
 
 	public void setCheckedIn(boolean checkedIn) {
 		this.checkedIn = checkedIn;
+	}
+	
+	public void setIgnoreCheckedIn(boolean ignoreCheckedIn) {
+		this.ignoreCheckedIn = ignoreCheckedIn;
 	}
 	
 	public boolean isInGame() {

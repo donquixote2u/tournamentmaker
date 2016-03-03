@@ -1,9 +1,11 @@
 package ui.util;
 
 import java.awt.Component;
+import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Window;
 import java.awt.print.PageFormat;
 import java.awt.print.Pageable;
 import java.awt.print.Printable;
@@ -18,6 +20,7 @@ import javax.print.attribute.standard.MediaSizeName;
 public class PrintUtils implements Printable, Pageable {
 	private static final double MIN_SCALE = 0.5;
 	private static final PrintRequestAttributeSet printRequestAttributes;
+	private Window window;
 	private Component component;
 	private Dimension size;
 	private PageFormat pageFormat;
@@ -30,14 +33,27 @@ public class PrintUtils implements Printable, Pageable {
 		printRequestAttributes.add(MediaSizeName.NA_LETTER);
 	}
 	
-	public static synchronized void printComponent(Component component) throws PrinterException {
+	public static synchronized void printComponent(Window window, Component component, boolean useDefaultPrinter) throws PrinterException {
 		if(component == null) {
 			return;
 		}
-		new PrintUtils(component).print();
+		// show the waiting cursor if a window was passed in
+		if(window != null) {
+			window.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+		}
+		try {
+			new PrintUtils(window, component).print(useDefaultPrinter);
+		}
+		catch(Exception e) {
+			if(window != null) {
+				window.setCursor(null);
+			}
+			throw e;
+		}
 	}
 	
-	private PrintUtils(Component component) {
+	private PrintUtils(Window window, Component component) {
+		this.window = window;
 		this.component = component;
 		Dimension prefSize = component.getPreferredSize();
 		Dimension curSize = component.getSize();
@@ -45,11 +61,15 @@ public class PrintUtils implements Printable, Pageable {
 		updatePageFormat(null);
 	}
 	
-	public void print() throws PrinterException {
+	public void print(boolean useDefaultPrinter) throws PrinterException {
 		PrinterJob printerJob = PrinterJob.getPrinterJob();
 		printerJob.setPageable(this);
 		printerJob.setCopies(1);
-		if(printerJob.printDialog()) {
+		// reset the cursor if a window was passed in
+		if(window != null) {
+			window.setCursor(null);
+		}
+		if(useDefaultPrinter || printerJob.printDialog()) {
 			updatePageFormat(printerJob);
 			printerJob.print();
 		}

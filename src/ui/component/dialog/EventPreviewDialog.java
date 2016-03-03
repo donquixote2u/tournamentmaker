@@ -15,6 +15,7 @@ import java.util.List;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JDialog;
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
@@ -23,7 +24,9 @@ import javax.swing.JScrollPane;
 import javax.swing.WindowConstants;
 
 import data.event.Event;
+import data.event.painter.EventPainter;
 import data.team.Team;
+import ui.component.GenericWrapper;
 import ui.component.panel.EventBracketCanvas;
 import ui.main.TournamentViewManager;
 
@@ -49,20 +52,34 @@ public class EventPreviewDialog extends JDialog {
 		});
 		// set up the event canvas
 		JScrollPane scrollPane = new JScrollPane();
-		final EventBracketCanvas eventCanvas = new EventBracketCanvas(50, 10, 10, 16.0f, 5, scrollPane);
+		final EventBracketCanvas eventCanvas = new EventBracketCanvas(36, 10, 10, 14.0f, 5, scrollPane);
 		eventCanvas.setBackground(manager.getBackgroundColor());
 		scrollPane.setViewportView(eventCanvas);
 		scrollPane.setBorder(BorderFactory.createEmptyBorder());
-		scrollPane.getVerticalScrollBar().setUnitIncrement(50);
-		scrollPane.getHorizontalScrollBar().setUnitIncrement(50);
+		scrollPane.getVerticalScrollBar().setUnitIncrement(36);
+		scrollPane.getHorizontalScrollBar().setUnitIncrement(36);
 		getContentPane().add(scrollPane, BorderLayout.CENTER);
+		// set up the filter
+		final JComboBox<GenericWrapper<EventPainter>> filter = new JComboBox<GenericWrapper<EventPainter>>();
+		filter.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent event) {
+				@SuppressWarnings("unchecked")
+				GenericWrapper<EventPainter> selected = (GenericWrapper<EventPainter>) filter.getSelectedItem();
+				if(selected == null) {
+					eventCanvas.setEventPainter(null);
+				}
+				else {
+					eventCanvas.setEventPainter(selected.getValue());
+				}
+			}
+		});
+		getContentPane().add(filter, BorderLayout.PAGE_START);
 		// set up the buttons
 		JPanel buttons = new JPanel(new FlowLayout());
 		JButton print = new JButton("Print");
 		print.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				manager.printComponent(eventCanvas);
-				processWindowEvent(new WindowEvent(EventPreviewDialog.this, WindowEvent.WINDOW_CLOSING));
 			}
 		});
 		buttons.add(print);
@@ -86,7 +103,9 @@ public class EventPreviewDialog extends JDialog {
 			return;
 		}
 		manager.getTournament().addMatches(event.start());
-		eventCanvas.setEventPainter(event.getEventPainter(event.getDisplayLevels().get(0)));
+		for(EventPainter eventPainter : event.getEventPainters(event.getDisplayLevels().get(0), manager.getTournament().getDisableBracketPooling())) {
+			filter.addItem(new GenericWrapper<EventPainter>(eventPainter));
+		}
 		pack();
 		setLocationRelativeTo(owner);
 		setVisible(true);

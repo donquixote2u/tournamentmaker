@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Set;
 
 import data.event.painter.EventPainter;
+import data.event.painter.SingleEliminationEventPainter;
 import data.event.result.EventResult;
 import data.match.Match;
 import data.player.Player;
@@ -16,6 +17,8 @@ import data.team.Team;
 
 public abstract class Event implements Serializable {
 	private static final long serialVersionUID = -4350019506547575220L;
+	// number of starting matches in each pool
+	private static final int POOL_SIZE = 8;
 	private int numberOfTeams, minScore, maxScore, winBy, bestOf;
 	private String name;
 	private List<String> levels;
@@ -247,6 +250,91 @@ public abstract class Event implements Serializable {
 		setPaused(null, -1);
 	}
 	
+	/**
+	 * Returns a list of event painters for the given level.
+	 * @param level the display level of the match you want to draw
+	 * @param disablePooling true to draw all the matches together
+	 * @return
+	 */
+	public final List<EventPainter> getEventPainters(String level, boolean disablePooling) {
+		List<EventPainter> eventPainters = new ArrayList<EventPainter>();
+		List<Match> matches = getMatches(level);
+		if(matches == null) {
+			return eventPainters;
+		}
+		if(disablePooling || !canPoolMatches() || matches.size() <= POOL_SIZE) {
+			eventPainters.add(getEventPainter(level));
+			return eventPainters;
+		}
+		String levelString = " - ";
+		if(showDisplayLevel()) {
+			levelString += level + ", ";
+		}
+		int poolIndex = 1;
+		while(matches.size() > POOL_SIZE) {
+			int inc = (int) (Math.log(POOL_SIZE) / Math.log(2.0));
+			List<Match> nextMatches = new ArrayList<Match>(matches);
+			for(int i = 0; i < inc; ++i) {
+				nextMatches = EventUtils.getWinnerMatches(nextMatches);
+			}
+			int poolCount = matches.size() / POOL_SIZE;
+			for(int i = 0; i < poolCount; ++i) {
+				if(nextMatches.get(i).getIgnoreMatch()) {
+					continue;
+				}
+				eventPainters.add(getEventPainter(levelString + "Pool " + poolIndex++, level, matches.subList(i * POOL_SIZE, (i + 1) * POOL_SIZE), false));
+			}
+			matches = nextMatches;
+		}
+		eventPainters.add(getEventPainter(levelString + "Finals Pool", level, matches, true));
+		return eventPainters;
+	}
+	
+	/**
+	 * Returns the name of the pool the match is in.
+	 * @param match
+	 * @return
+	 */
+	public final String getPoolName(Match match, boolean disablePooling) {
+		if(match == null) {
+			return null;
+		}
+		List<Match> matches = getMatches(match.getLevel());
+		if(disablePooling || !canPoolMatches() || matches.size() <= POOL_SIZE) {
+			return getName() + (showDisplayLevel() ? " - " + match.getLevel() : "");
+		}
+		String poolName = getName() + " - ";
+		if(showDisplayLevel()) {
+			poolName += match.getLevel() + ", ";
+		}
+		int poolIndex = 1;
+		while(matches.size() > POOL_SIZE) {
+			int inc = (int) (Math.log(POOL_SIZE) / Math.log(2.0));
+			List<Match> nextMatches = new ArrayList<Match>(matches);
+			for(int i = 0; i < inc; ++i) {
+				nextMatches = EventUtils.getWinnerMatches(nextMatches);
+			}
+			int poolCount = matches.size() / POOL_SIZE;
+			for(int i = 0; i < poolCount; ++i) {
+				if(nextMatches.get(i).getIgnoreMatch()) {
+					continue;
+				}
+				List<Match> pool = matches.subList(i * POOL_SIZE, (i + 1) * POOL_SIZE);
+				while(pool.size() > 1) {
+					for(Match cur : pool) {
+						if(match.equals(cur)) {
+							return poolName + "Pool " + poolIndex;
+						}
+					}
+					pool = EventUtils.getWinnerMatches(pool);
+				}
+				++poolIndex;
+			}
+			matches = nextMatches;
+		}
+		return poolName + "Finals Pool";
+	}
+	
 	public Set<Match> getAllMatches() {
 		Set<Match> matches = new HashSet<Match>();
 		if(!started) {
@@ -260,6 +348,37 @@ public abstract class Event implements Serializable {
 	
 	public boolean showDisplayLevel() {
 		return displayLevels.size() > 1;
+	}
+	
+	/**
+	 * Returns if the matches in this event can be broken up and displayed in different event painters.
+	 * Events that don't use single elimination style brackets should return false.
+	 * @return
+	 */
+	public boolean canPoolMatches() {
+		return true;
+	}
+	
+	protected EventPainter getEventPainter(String level) {
+		return new SingleEliminationEventPainter(this, level);
+	}
+	
+	protected EventPainter getEventPainter(String description, String level, List<Match> matches, boolean isFinals) {
+		return new SingleEliminationEventPainter(this, description, matches);
+	}
+	
+	protected String generateSingleDisplayLevelString() {
+		String levelString = "";
+		for(String level : levels) {
+			levelString += level + ", ";
+		}
+		if(levelString.isEmpty()) {
+			levelString = "All";
+		}
+		else {
+			levelString = levelString.substring(0, levelString.length() - 2);
+		}
+		return levelString;
 	}
 	
 	// for backwards compatibility
@@ -279,8 +398,6 @@ public abstract class Event implements Serializable {
 	public abstract EventResult getWinners(String level);
 	// this returns a list of all the matches for the event at the given level
 	public abstract List<Match> getMatches(String level);
-	// this returns an EventPainter object that can draw a visual representation for this event
-	public abstract EventPainter getEventPainter(String level);
 	// this should be called to start the event. it will handle any initial calculations and return the list of available matches
 	protected abstract List<Match> startEvent();
 	// this should be called to undo an event

@@ -189,6 +189,10 @@ public class MatchPanel extends JPanel {
 		withdrawTeam1.setVisible(!formatForPrint);
 		withdrawTeam2.setVisible(!formatForPrint);
 		parent.pack();
+		// set focus to each component in the games panel so we can immediately check for a winner
+		for(int i = 0; i < gamesPanel.getComponentCount(); ++i) {
+			((GameTextField) gamesPanel.getComponent(i)).setFocus();
+		}
 		checkForWinner();
 		if(gamesPanel.getComponentCount() > 0) {
 			((GameTextField) gamesPanel.getComponent(0)).setFocus();
