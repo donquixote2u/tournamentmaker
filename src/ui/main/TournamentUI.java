@@ -64,6 +64,7 @@ import javax.swing.KeyStroke;
 import javax.swing.WindowConstants;
 import javax.swing.border.Border;
 import javax.swing.border.LineBorder;
+import javax.swing.filechooser.FileFilter;
 
 import ui.component.dialog.CSVImportDialog;
 import ui.component.dialog.FileChooser;
@@ -127,8 +128,18 @@ public class TournamentUI extends JFrame {
 		fileChooser = new FileChooser(this, FILE_EXTENSION, "Tournament Maker Data File (*" + FILE_EXTENSION + ")");
 		// setting up the file chooser for the data import
 		importFileChooser = new FileChooser(this);
-		importFileChooser.addFileFilter(CSVImportDialog.FILE_EXTENSION, "CSV File (*" + CSVImportDialog.FILE_EXTENSION + ")", true);
-		importFileChooser.addFileFilter(FILE_EXTENSION, "Tournament Maker Data File (*" + FILE_EXTENSION + ")", false);
+		importFileChooser.setAcceptAllFileFilterUsed(false);
+		importFileChooser.addChoosableFileFilter(new FileFilter() {
+			public boolean accept(File file) {
+				String fileName = file.getName().toLowerCase();
+				return file.isDirectory() || fileName.endsWith(CSVImportDialog.FILE_EXTENSION) || fileName.endsWith(FILE_EXTENSION);
+			}
+
+			public String getDescription() {
+				return "CSV File (*" + CSVImportDialog.FILE_EXTENSION + ") and Tournament Maker Data File (*" + FILE_EXTENSION + ")";
+			}
+		});
+		importFileChooser.setAcceptAllFileFilterUsed(true);
 		// creating the toolbar and the tournament ui component
 		createToolbar();
 		createTournamentView();
@@ -319,7 +330,14 @@ public class TournamentUI extends JFrame {
 		basic.add(new JLabel("Levels (Comma Separated List)"), GenericUtils.createGridBagConstraint(0, 1, 0.3));
 		final TextFieldWithErrorMessage levels = new TextFieldWithErrorMessage(15);
 		if(edit) {
-			levels.setText(tournamentViewManager.getTournament().getLevels().toString());
+			String levelString = "";
+			for(String level : tournamentViewManager.getTournament().getLevels()) {
+				levelString += level + ", ";
+			}
+			if(!levelString.isEmpty()) {
+				levelString = levelString.substring(0, levelString.length() - 2);
+			}
+			levels.setText(levelString);
 			levels.setEnabled(false);
 		}
 		basic.add(levels, GenericUtils.createGridBagConstraint(1, 1, 0.7));
@@ -375,27 +393,32 @@ public class TournamentUI extends JFrame {
 		if(edit) {
 			playerStatus.setSelected(tournamentViewManager.getTournament().getIgnorePlayerStatus());
 		}
-		advanced.add(playerStatus, GenericUtils.createGridBagConstraint(0, 0, 1.0));
-		final JCheckBox showMatches = new JCheckBox("Show all matches");
-		if(edit) {
-			showMatches.setSelected(tournamentViewManager.getTournament().getShowAllMatches());
-		}
-		advanced.add(showMatches, GenericUtils.createGridBagConstraint(0, 1, 1.0));
+		advanced.add(playerStatus, GenericUtils.createGridBagConstraint(0, 0, 0.5));
 		final JCheckBox defaultPrinter = new JCheckBox("Print directly to default printer");
 		if(edit) {
 			defaultPrinter.setSelected(tournamentViewManager.getTournament().getUseDefaultPrinter());
 		}
-		advanced.add(defaultPrinter, GenericUtils.createGridBagConstraint(0, 2, 1.0));
+		advanced.add(defaultPrinter, GenericUtils.createGridBagConstraint(0, 1, 0.5));
 		final JCheckBox autoPrint = new JCheckBox("Automatically print match after match start");
 		if(edit) {
 			autoPrint.setSelected(tournamentViewManager.getTournament().getAutoPrintMatches());
 		}
-		advanced.add(autoPrint, GenericUtils.createGridBagConstraint(0, 3, 1.0));
+		advanced.add(autoPrint, GenericUtils.createGridBagConstraint(0, 2, 0.5));
+		final JCheckBox showMatches = new JCheckBox("Show all matches");
+		if(edit) {
+			showMatches.setSelected(tournamentViewManager.getTournament().getShowAllMatches());
+		}
+		advanced.add(showMatches, GenericUtils.createGridBagConstraint(1, 0, 0.5));
 		final JCheckBox disablePooling = new JCheckBox("Draw all matches from a bracket together");
 		if(edit) {
 			disablePooling.setSelected(tournamentViewManager.getTournament().getDisableBracketPooling());
 		}
-		advanced.add(disablePooling, GenericUtils.createGridBagConstraint(0, 4, 1.0));
+		advanced.add(disablePooling, GenericUtils.createGridBagConstraint(1, 1, 0.5));
+		final JCheckBox disableScheduler = new JCheckBox("Disable the scheduler");
+		if(edit) {
+			disableScheduler.setSelected(tournamentViewManager.getTournament().getDisableScheduler());
+		}
+		advanced.add(disableScheduler, GenericUtils.createGridBagConstraint(1, 2, 0.5));
 		final JTabbedPane root = new JTabbedPane(JTabbedPane.TOP, JTabbedPane.SCROLL_TAB_LAYOUT);
 		root.add("Basic", basic);
 		root.add("Advanced", advanced);
@@ -441,6 +464,7 @@ public class TournamentUI extends JFrame {
 					tournamentViewManager.getTournament().setUseDefaultPrinter(defaultPrinter.isSelected());
 					tournamentViewManager.getTournament().setAutoPrintMatches(autoPrint.isSelected());
 					tournamentViewManager.getTournament().setDisableBracketPooling(disablePooling.isSelected());
+					tournamentViewManager.getTournament().setDisableScheduler(disableScheduler.isSelected());
 					tournamentViewManager.updateTournament();
 				}
 				else {
@@ -450,6 +474,7 @@ public class TournamentUI extends JFrame {
 					tournament.setUseDefaultPrinter(defaultPrinter.isSelected());
 					tournament.setAutoPrintMatches(autoPrint.isSelected());
 					tournament.setDisableBracketPooling(disablePooling.isSelected());
+					tournament.setDisableScheduler(disableScheduler.isSelected());
 					tournamentViewManager.setTournament(tournament);
 					TournamentUtils.resetMatchIndex();
 				}

@@ -93,7 +93,11 @@ public class EventPreviewDialog extends JDialog {
 		getContentPane().add(buttons, BorderLayout.PAGE_END);
 		// show the preview
 		try {
-			event.setTeams(newTeams);
+			List<Team> copyOfNewTeams = new ArrayList<Team>();
+			for(Team team : newTeams) {
+				copyOfNewTeams.add(team.copy());
+			}
+			event.setTeams(copyOfNewTeams);
 		}
 		catch(Exception e) {}
 		if(!event.canStart()) {

@@ -1250,6 +1250,22 @@ public class TournamentViewManager {
 				return team.getTeamType();
 			}
 		});
+		tableModel.addColumn("Event", false, String.class, new GenericValue<Team>() {
+			public Object getValue(Team team) {
+				if(tournament == null || team == null || !team.getInEvent()) {
+					return null;
+				}
+				for(Event event : tournament.getEvents()) {
+					if(!event.isStarted() || !event.getTeamFilter().isValidTeam(team)) {
+						continue;
+					}
+					if(event.getTeams().contains(team)) {
+						return event.getName();
+					}
+				}
+				return null;
+			}
+		}, true);
 		tableModel.addColumn("Name", true, String.class, new GenericValue<Team>() {
 			public Object getValue(Team team) {
 				return team.getName();
@@ -1273,7 +1289,7 @@ public class TournamentViewManager {
 					team.setPlayer(i, list.get(i));
 				}
 			}
-		}, true, Arrays.asList(0, 2, 4));
+		}, true, Arrays.asList(0, 3, 5));
 		tableModel.addColumn("Club", false, String.class, new GenericValue<Team>() {
 			public Object getValue(Team team) {
 				return team.getClub();
@@ -1321,9 +1337,9 @@ public class TournamentViewManager {
 		TableColumnModel columnModel = teamsTable.getColumnModel();
 		// setting the editor for teams
 		final TeamEditor teamEditor = new TeamEditor(ui, "This team does not accept players.");
-		columnModel.getColumn(3).setCellEditor(teamEditor);
+		columnModel.getColumn(4).setCellEditor(teamEditor);
 		// setting the renderer for record
-		columnModel.getColumn(6).setCellRenderer(new DefaultTableCellRenderer() {
+		columnModel.getColumn(7).setCellRenderer(new DefaultTableCellRenderer() {
 			public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
 				super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
 				setHorizontalAlignment(SwingConstants.CENTER);
@@ -1331,14 +1347,14 @@ public class TournamentViewManager {
 			}
 		});
 		// setting the editor and renderer for delete
-		columnModel.getColumn(7).setCellRenderer(new DefaultTableCellRenderer() {
+		columnModel.getColumn(8).setCellRenderer(new DefaultTableCellRenderer() {
 			private JButton button = new JButton("");
 
 			public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
 				return button;
 			}
 		});
-		columnModel.getColumn(7).setCellEditor(new ButtonAction(ui) {
+		columnModel.getColumn(8).setCellEditor(new ButtonAction(ui) {
 			protected String generateActionMessage(Object value) {
 				return "Are you sure you want to delete " + ((Team) value).getName() + "?";
 			}
@@ -1349,14 +1365,15 @@ public class TournamentViewManager {
 		});
 		// setting the preferred size by the percent * the screen width so swing will resize the columns properly
 		int screenWidth = (int) Toolkit.getDefaultToolkit().getScreenSize().getWidth();
-		columnModel.getColumn(0).setPreferredWidth(10 * screenWidth);
-		columnModel.getColumn(1).setPreferredWidth(10 * screenWidth);
-		columnModel.getColumn(2).setPreferredWidth(25 * screenWidth);
+		columnModel.getColumn(0).setPreferredWidth(6 * screenWidth);
+		columnModel.getColumn(1).setPreferredWidth(6 * screenWidth);
+		columnModel.getColumn(2).setPreferredWidth(8 * screenWidth);
 		columnModel.getColumn(3).setPreferredWidth(25 * screenWidth);
-		columnModel.getColumn(4).setPreferredWidth(20 * screenWidth);
-		columnModel.getColumn(5).setPreferredWidth(3 * screenWidth);
-		columnModel.getColumn(6).setPreferredWidth(4 * screenWidth);
-		columnModel.getColumn(7).setPreferredWidth(3 * screenWidth);
+		columnModel.getColumn(4).setPreferredWidth(25 * screenWidth);
+		columnModel.getColumn(5).setPreferredWidth(20 * screenWidth);
+		columnModel.getColumn(6).setPreferredWidth(3 * screenWidth);
+		columnModel.getColumn(7).setPreferredWidth(4 * screenWidth);
+		columnModel.getColumn(8).setPreferredWidth(3 * screenWidth);
 		JScrollPane scrollPane = new JScrollPane(teamsTable);
 		scrollPane.setBorder(BorderFactory.createEmptyBorder());
 		teamsTable.setFillsViewportHeight(true);

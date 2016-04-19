@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 
 import javax.swing.DefaultListModel;
@@ -71,7 +72,7 @@ public class EventTeamSelector extends JDialog {
 	private JPanel upperTeams, lowerTeams;
 	private JList<Team> teamsList;
 	private DefaultListModel<Team> teams;
-	private JCheckBox filterTeamsByLevel;
+	private JCheckBox filterTeamsByLevel, filterTeamsByRegistration;
 	private TournamentViewManager manager;
 	private String teamSeed;
 	
@@ -207,13 +208,22 @@ public class EventTeamSelector extends JDialog {
 		});
 		scrollPane = new JScrollPane(teamsList);
 		root.add(scrollPane, new GridBagConstraints(2, 1, 1, 1, 0.33, 1.0, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(0, 0, 0, 0), 0, 0));
+		JPanel checkBoxes = new JPanel();
 		filterTeamsByLevel = new JCheckBox("Filter Teams By Level");
 		filterTeamsByLevel.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent event) {
 				populateTeams();
 			}
 		});
-		root.add(filterTeamsByLevel, new GridBagConstraints(2, 2, 1, 1, 0, 0, GridBagConstraints.CENTER, GridBagConstraints.NONE, new Insets(5, 0, 5, 0), 0, 0));
+		checkBoxes.add(filterTeamsByLevel);
+		filterTeamsByRegistration = new JCheckBox("Hide Unregistered Teams");
+		filterTeamsByRegistration.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent event) {
+				populateTeams();
+			}
+		});
+		checkBoxes.add(filterTeamsByRegistration);
+		root.add(checkBoxes, new GridBagConstraints(2, 2, 1, 1, 0, 0, GridBagConstraints.CENTER, GridBagConstraints.NONE, new Insets(5, 0, 5, 0), 0, 0));
 		JButton advanced = new JButton("Advanced Settings");
 		advanced.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
@@ -223,6 +233,7 @@ public class EventTeamSelector extends JDialog {
 				}
 				String nameValue = name.getText();
 				newEvent.setFilterTeamByLevel(filterTeamsByLevel.isSelected());
+				newEvent.setFilterTeamByRegistration(filterTeamsByRegistration.isSelected());
 				if(newEvent.getTeamFilter().getTeamType().equals(currentEvent.getTeamFilter().getTeamType())) {
 					List<Team> currentTeams = getSetTeams();
 					ArrayList<Team> newTeams = new ArrayList<Team>();
@@ -252,6 +263,7 @@ public class EventTeamSelector extends JDialog {
 				EventTeamSelector.this.button.setIsPreview(true);
 				currentEvent.setName(name.getText());
 				currentEvent.setFilterTeamByLevel(filterTeamsByLevel.isSelected());
+				currentEvent.setFilterTeamByRegistration(filterTeamsByRegistration.isSelected());
 				new EventPreviewDialog(owner, EventTeamSelector.this.manager, currentEvent, getSetTeams());
 				currentEvent.setName(originalName);
 				currentEvent.setFilterTeamByLevel(originalFilter);
@@ -271,6 +283,7 @@ public class EventTeamSelector extends JDialog {
 				}
 				boolean originalFilter = currentEvent.getFilterTeamByLevel();
 				currentEvent.setFilterTeamByLevel(filterTeamsByLevel.isSelected());
+				currentEvent.setFilterTeamByRegistration(filterTeamsByRegistration.isSelected());
 				List<Team> originalTeams = new ArrayList<Team>();
 				originalTeams.addAll(currentEvent.getTeams());
 				currentEvent.setTeams(getSetTeams());
@@ -324,6 +337,7 @@ public class EventTeamSelector extends JDialog {
 					EventTeamSelector.this.manager.getTournament().renameEvent(currentEvent, newName);
 				}
 				currentEvent.setFilterTeamByLevel(filterTeamsByLevel.isSelected());
+				currentEvent.setFilterTeamByRegistration(filterTeamsByRegistration.isSelected());
 				currentEvent.setTeams(getSetTeams());
 				EventTeamSelector.this.dispose();
 				EventTeamSelector.this.manager.switchToTab(TournamentViewManager.TOURNAMENT_TAB, true);
@@ -355,6 +369,7 @@ public class EventTeamSelector extends JDialog {
 		name.setText(currentEvent.getName());
 		filterTeamsByLevel.setSelected(currentEvent.getFilterTeamByLevel());
 		filterTeamsByLevel.setVisible(!currentEvent.getLevels().isEmpty());
+		filterTeamsByRegistration.setSelected(currentEvent.getFilterTeamByRegistration());
 		List<Team> eventTeams = currentEvent.getTeams();
 		upperTeams.removeAll();
 		lowerTeams.removeAll();
@@ -377,10 +392,10 @@ public class EventTeamSelector extends JDialog {
 	}
 	
 	private void populateTeams() {
-		ArrayList<Team> validTeams = new ArrayList<Team>();
+		HashMap<String, Team> teamMap = new HashMap<String, Team>();
 		List<String> levels = currentEvent.getLevels();
 		for(Team team : manager.getTournament().getTeams()) {
-			if(team == null || !team.isValid() || team.getInEvent()) {
+			if(team == null || !team.isValid()) {
 				continue;
 			}
 			if(filterTeamsByLevel.isSelected() && Collections.disjoint(levels, team.getLevels())) {
@@ -389,18 +404,31 @@ public class EventTeamSelector extends JDialog {
 			if(!currentEvent.getTeamFilter().isValidTeam(team)) {
 				continue;
 			}
-			boolean skipTeam = false;
-			for(Player player : team.getPlayers()) {
-				if(!player.getEvents().contains(currentEvent.getName())) {
-					skipTeam = true;
-					break;
+			if(filterTeamsByRegistration.isSelected()) {
+				boolean skipTeam = false;
+				for(Player player : team.getPlayers()) {
+					if(!player.getEvents().contains(currentEvent.getName())) {
+						skipTeam = true;
+						break;
+					}
+				}
+				if(skipTeam) {
+					continue;
 				}
 			}
-			if(skipTeam) {
-				continue;
+			String teamName = team.toString();
+			if(teamMap.containsKey(teamName)) {
+				Team other = teamMap.get(teamName);
+				if(!team.getInEvent() && other.getInEvent()) {
+					teamMap.put(teamName, team);
+				}
 			}
-			validTeams.add(team);
+			else {
+				teamMap.put(teamName, team);
+			}
 		}
+		updateSetTeams(teamMap);
+		ArrayList<Team> validTeams = new ArrayList<Team>(teamMap.values());
 		// setting the team borders
 		for(int i = 0; i < currentEvent.getNumberOfTeams(); ++i) {
 			JLabel seed;
@@ -531,6 +559,25 @@ public class EventTeamSelector extends JDialog {
 		teams.clear();
 		for(Team team : validTeams) {
 			teams.addElement(team);
+		}
+	}
+	
+	private void updateSetTeams(HashMap<String, Team> teamMap) {
+		for(int i = 0; i < currentEvent.getNumberOfTeams(); ++i) {
+			TeamLabel teamLabel;
+			if(i % 2 == 0) {
+				teamLabel = (TeamLabel) upperTeams.getComponent(i + 1);
+			}
+			else {
+				teamLabel = (TeamLabel) lowerTeams.getComponent(i);
+			}
+			if(teamLabel.team == null) {
+				continue;
+			}
+			Team team = teamMap.get(teamLabel.team.toString());
+			if(team != null) {
+				teamLabel.setTeam(team, false);
+			}
 		}
 	}
 	

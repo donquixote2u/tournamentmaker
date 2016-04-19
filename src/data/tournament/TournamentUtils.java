@@ -27,6 +27,7 @@ public class TournamentUtils {
 		ArrayList<Match> hasForfeit = new ArrayList<Match>();
 		ArrayList<Match> matchesToSort = new ArrayList<Match>();
 		ArrayList<Match> futureMatches = new ArrayList<Match>();
+		ArrayList<Match> notScheduled = new ArrayList<Match>();
 		for(Match match : matches) {
 			// don't sort completed or started matches
 			if(match.isComplete() || match.getStart() != null) {
@@ -50,6 +51,11 @@ public class TournamentUtils {
 			// keep track of matches with forfeits
 			if(match.getT1ForfeitOnStart() || match.getT2ForfeitOnStart()) {
 				hasForfeit.add(match);
+			}
+			// if we are disabling the scheduler, we want to sort the matches by index
+			if(tournament.getDisableScheduler()) {
+				notScheduled.add(match);
+				continue;
 			}
 			// don't sort matches that are missing both teams
 			if(match.getTeam1() == null && match.getTeam2() == null) {
@@ -341,6 +347,13 @@ public class TournamentUtils {
 			}
 		});
 		sorted.addAll(futureMatches);
+		// add all the matches where we aren't using the scheduler
+		Collections.sort(notScheduled, new Comparator<Match>() {
+			public int compare(Match m1, Match m2) {
+				return m1.getIndex() - m2.getIndex();
+			}
+		});
+		sorted.addAll(notScheduled);
 		tournament.updateEstimatedTimes(sorted);
 		return sorted;
 	}

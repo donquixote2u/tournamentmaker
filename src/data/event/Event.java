@@ -24,7 +24,7 @@ public abstract class Event implements Serializable {
 	private List<String> levels;
 	private List<Team> teams;
 	private Team teamFilter;
-	private boolean started, filterTeamByLevel;
+	private boolean started, filterTeamByLevel, filterTeamByRegistration;
 	private Set<String> pausedLevels;
 	private int pausedMatchLevel;
 	private List<String> displayLevels;
@@ -123,11 +123,15 @@ public abstract class Event implements Serializable {
 		ArrayList<Team> list = new ArrayList<Team>();
 		for(Team team : teams) {
 			if(team != null) {
-				if(team.getInEvent()) {
-					return false;
-				}
 				if(filterTeamByLevel && Collections.disjoint(levels, team.getLevels())) {
 					return false;
+				}
+				if(filterTeamByRegistration) {
+					for(Player player : team.getPlayers()) {
+						if(!player.getEvents().contains(getName())) {
+							return false;
+						}
+					}
 				}
 				if(teamFilter.isValidTeam(team)) {
 					set.add(team);
@@ -157,6 +161,26 @@ public abstract class Event implements Serializable {
 	
 	public final List<Team> getTeams() {
 		return Collections.unmodifiableList(teams);
+	}
+	
+	public final List<Team> prepareTeamsForEventStart() {
+		List<Team> copiedTeams = new ArrayList<Team>();
+		for(int i = 0; i < teams.size(); ++i) {
+			Team team = teams.get(i);
+			if(team != null) {
+				if(team.getInEvent()) {
+					team = team.copy();
+					teams.set(i, team);
+					copiedTeams.add(team);
+				}
+				for(Player player : team.getPlayers()) {
+					HashSet<String> events = new HashSet<String>(player.getEvents());
+					events.add(getName());
+					player.setEvents(events);
+				}
+			}
+		}
+		return copiedTeams;
 	}
 	
 	public final boolean isComplete(String level) {
@@ -212,6 +236,14 @@ public abstract class Event implements Serializable {
 	
 	public final void setFilterTeamByLevel(boolean filterTeamByLevel) {
 		this.filterTeamByLevel = !levels.isEmpty() && filterTeamByLevel;
+	}
+	
+	public final boolean getFilterTeamByRegistration() {
+		return filterTeamByRegistration;
+	}
+	
+	public final void setFilterTeamByRegistration(boolean filterTeamByRegistration) {
+		this.filterTeamByRegistration = filterTeamByRegistration;
 	}
 	
 	public final boolean canStart() {

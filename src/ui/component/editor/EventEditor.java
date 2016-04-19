@@ -1,11 +1,13 @@
 package ui.component.editor;
 
+import java.util.HashSet;
+
 import javax.swing.JFrame;
 import javax.swing.JTable;
 
 import ui.component.table.GenericTableModel;
 import ui.main.TournamentViewManager;
-
+import data.event.Event;
 import data.player.Player;
 import data.tournament.TournamentUtils;
 
@@ -20,6 +22,13 @@ public class EventEditor extends ListEditor {
 	
 	@SuppressWarnings("unchecked")
 	protected void setEditorValue(JTable table, Object value, int row, int column) {
+		HashSet<String> disabled = new HashSet<String>();
+		for(Event event : manager.getTournament().getEvents()) {
+			if(event.isStarted()) {
+				disabled.add(event.getName());
+			}
+		}
+		setDisabledStrings(disabled);
 		setValues(TournamentUtils.getValidEventNames(((GenericTableModel<Player>) table.getModel()).getData(table.convertRowIndexToModel(row)), manager.getTournament().getEvents()));
 		super.setEditorValue(table, value, row, column);
 	}

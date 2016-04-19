@@ -19,7 +19,7 @@ public class ListEditor extends GenericEditor {
 	private String emptyValueMessage;
 	private List<String> values;
 	private JPanel panel;
-	private Set<String> selectedStrings;
+	private Set<String> selectedStrings, disabledStrings;
 	private boolean displayChanged;
 	
 	public ListEditor(JFrame owner, String emptyValueMessage) {
@@ -27,11 +27,15 @@ public class ListEditor extends GenericEditor {
 		this.emptyValueMessage = emptyValueMessage;
 		values = new ArrayList<String>();
 		selectedStrings = new HashSet<String>();
+		disabledStrings = new HashSet<String>();
         buildPanel();
 	}
 	
 	public void setValues(Collection<String> values) {
 		if(values == null) {
+			if(this.values.isEmpty()) {
+				return;
+			}
 			this.values.clear();
 			buildPanel();
 			return;
@@ -52,6 +56,40 @@ public class ListEditor extends GenericEditor {
 			this.values.clear();
 			this.values.addAll(values);
 			buildPanel();
+		}
+	}
+	
+	public void setDisabledStrings(Collection<String> disabledStrings) {
+		boolean same = true;
+		if(disabledStrings == null) {
+			if(this.disabledStrings.isEmpty()) {
+				return;
+			}
+			same = false;
+		}
+		else if(this.disabledStrings.size() != disabledStrings.size()) {
+			same = false;
+		}
+		else {
+			for(String disabled : disabledStrings) {
+				if(!this.disabledStrings.contains(disabled)) {
+					same = false;
+					break;
+				}
+			}
+		}
+		if(!same) {
+			this.disabledStrings.clear();
+			if(disabledStrings != null) {
+				this.disabledStrings.addAll(disabledStrings);
+			}
+			for(Component comp : panel.getComponents()) {
+				if(!(comp instanceof JCheckBox)) {
+					continue;
+				}
+				JCheckBox checkBox = (JCheckBox) comp;
+				checkBox.setEnabled(!this.disabledStrings.contains(checkBox.getText()));
+			}
 		}
 	}
 	
@@ -106,6 +144,9 @@ public class ListEditor extends GenericEditor {
 			for(String value : values) {
 				JCheckBox checkBox = new JCheckBox(value);
 				checkBox.setFocusable(false);
+				if(disabledStrings.contains(value)) {
+					checkBox.setEnabled(false);
+				}
 				panel.add(checkBox);
 			}
 		}

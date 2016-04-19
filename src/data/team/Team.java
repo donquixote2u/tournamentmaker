@@ -199,6 +199,16 @@ public abstract class Team implements Serializable, Comparable<Team> {
 		return getClass().equals(team.getClass());
 	}
 	
+	public Team copy() {
+		Team team = newInstance();
+		team.name = name;
+		team.seed = seed;
+		for(int i = 0; i < getNumberOfPlayers(); ++i) {
+			team.setPlayer(i, getPlayer(i));
+		}
+		return team;
+	}
+	
 	public int compareTo(Team team) {
 		if(team == null) {
 			return 1;

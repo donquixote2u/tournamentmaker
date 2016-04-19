@@ -24,7 +24,7 @@ import data.team.Team;
 
 public class Tournament implements Serializable {
 	private static final long serialVersionUID = 5748474555295789647L;
-	public static final int VERSION = 8;
+	public static final int VERSION = 9;
 	public static final int COMPATIBLE = 5;
 	private transient List<Player> newPlayers;
 	private transient TreeMap<Team, List<Team>> newTeams;
@@ -39,7 +39,7 @@ public class Tournament implements Serializable {
 	private List<String> levels;
 	private List<Court> courts;
 	private int timeBetweenMatches;
-	private boolean ignorePlayerStatus, showAllMatches, useDefaultPrinter, autoPrintMatches, disableBracketPooling;
+	private boolean ignorePlayerStatus, showAllMatches, useDefaultPrinter, autoPrintMatches, disableBracketPooling, disableScheduler;
 	
 	// this is for backwards compatibility
 	private Map<Class<? extends Team>, List<Team>> teams;
@@ -127,6 +127,14 @@ public class Tournament implements Serializable {
 	
 	public void setDisableBracketPooling(boolean disableBracketPooling) {
 		this.disableBracketPooling = disableBracketPooling;
+	}
+	
+	public boolean getDisableScheduler() {
+		return disableScheduler;
+	}
+	
+	public void setDisableScheduler(boolean disableScheduler) {
+		this.disableScheduler = disableScheduler;
 	}
 	
 	/**
@@ -540,6 +548,9 @@ public class Tournament implements Serializable {
 	public void startEvent(Event event) {
 		if(!events.contains(event) || event.isStarted() || !event.canStart()) {
 			return;
+		}
+		for(Team team : event.prepareTeamsForEventStart()) {
+			addTeam(team);
 		}
 		addMatches(event.start());
 	}

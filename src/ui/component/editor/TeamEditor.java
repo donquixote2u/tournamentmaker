@@ -88,7 +88,7 @@ public class TeamEditor extends GenericEditor {
 				selected = list.get(i / 2).getName();
 			}
 			box.setSelectedItem(selected);
-			box.setEnabled(!team.isInMatch());
+			box.setEnabled(!team.getInEvent());
 		}
 	}
 
