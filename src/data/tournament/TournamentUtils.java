@@ -7,11 +7,9 @@ import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-import ui.util.Pair;
 import data.event.Event;
 import data.match.Match;
 import data.player.Player;
@@ -78,224 +76,152 @@ public class TournamentUtils {
 				return m1.toString().compareTo(m2.toString());
 			}
 		});
-		LinkedHashSet<Match> unsorted = new LinkedHashSet<Match>(matchesToSort);
-		// separating the matches into different groups
+		// get a mapping of players to team mates and the number of players each match impacts
 		final CurrentMatchQueue current = new CurrentMatchQueue(tournament);
-		// TODO figure out when to play scheduled matches?
-		final HashMap<Player, Set<Player>> playerToTeammates = new HashMap<Player, Set<Player>>();
-		HashSet<Match> initial = new HashSet<Match>();
-		final HashSet<Match> waiting = new HashSet<Match>();
-		PlayerQueue playerQueue = new PlayerQueue();
-		HashMap<Player, List<Match>> playerToMatches = new HashMap<Player, List<Match>>();
-		for(Match match : unsorted) {
-			for(Player player : match.getPlayers()) {
-				List<Match> playerMatches = playerToMatches.get(player);
-				if(playerMatches == null) {
-					playerMatches = new ArrayList<Match>();
-					playerToMatches.put(player, playerMatches);
-				}
-				playerMatches.add(match);
-				playerQueue.add(current.getlastPlayedDate(player), player);
-				Set<Player> teammates = playerToTeammates.get(player);
-				if(teammates == null) {
-					teammates = new HashSet<Player>();
-					playerToTeammates.put(player, teammates);
-				}
-				ArrayList<Player> list = new ArrayList<Player>(match.getTeam1() != null ? match.getTeam1().getPlayers() : match.getTeam2().getPlayers());
-				if(!list.remove(player)) {
-					list = new ArrayList<Player>(match.getTeam2().getPlayers());
-					list.remove(player);
-				}
-				teammates.addAll(list);
+		final HashMap<Match, Integer> matchImpact = new HashMap<Match, Integer>();
+		for(Match match : matchesToSort) {
+			// update the impact of the feeder matches
+			if(match.getTeam1() == null) {
+				updateFeederMatchImpact(match.getToTeam1Match(false), match.getTeam2().getPlayers().size() * 2, 0, matchImpact);
 			}
-			if(isInitialMatch(match)) {
-				initial.add(match);
+			if(match.getTeam2() == null) {
+				updateFeederMatchImpact(match.getToTeam2Match(false), match.getTeam1().getPlayers().size() * 2, 0, matchImpact);
 			}
-			if(match.getTeam1() == null || match.getTeam2() == null) {
-				waiting.add(match);
+			// calculate the number of other players this match impacts
+			Integer currentImpact = matchImpact.get(match);
+			int impact = currentImpact != null ? currentImpact.intValue() : 0;
+			if(match.getTeam1() != null && match.getTeam2() != null && match.getMirrorMatch() != null && match.getMirrorMatch().getStart() != null && !match.getMirrorMatch().isComplete()) {
+				impact += match.getMirrorMatch().getPlayers().size() / 2;
 			}
+			matchImpact.put(match, Integer.valueOf(impact));
 		}
-		// this comparator sorts the matches by if the match can start, then by the status, then by event progress, then by match tier
+		Collections.sort(matchesToSort, new Comparator<Match>() {
+			public int compare(Match m1, Match m2) {
+				return matchImpact.get(m2).compareTo(matchImpact.get(m1));
+			}
+		});
+		// this comparator sorts the matches by if the match can start and then the last played time
 		final Comparator<Match> matchComp = new Comparator<Match>() {
-			private HashMap<String, EventInfo> eventMap = new HashMap<String, EventInfo>();
+			private Comparator<Player> lastPlayedComp = new Comparator<Player>() {
+				public int compare(Player p1, Player p2) {
+					if(p1 == null && p2 == null) {
+						return 0;
+					}
+					if(p1 == null) {
+						return 1;
+					}
+					if(p2 == null) {
+						return -1;
+					}
+					Date d1 = current.getlastPlayedDate(p1);
+					Date d2 = current.getlastPlayedDate(p2);
+					if(d1 == null && d2 == null) {
+						return 0;
+					}
+					if(d1 == null) {
+						return -1;
+					}
+					if(d2 == null) {
+						return 1;
+					}
+					return d1.compareTo(d2);
+				}
+			};
 			
 			public int compare(Match m1, Match m2) {
-				// null check
-				if(m1 == null && m2 == null) {
+				// waiting matches
+				boolean m1Waiting = m1.getTeam1() == null || m1.getTeam2() == null;
+				boolean m2Waiting = m2.getTeam1() == null || m2.getTeam2() == null;
+				if(m1Waiting != m2Waiting) {
+					return m1Waiting ? 1 : -1;
+				}
+				// last played time
+				List<Player> m1Players = m1.getPlayers();
+				List<Player> m2Players = m2.getPlayers();
+				if(m1Players.isEmpty() && m2Players.isEmpty()) {
 					return 0;
 				}
-				if(m1 == null) {
+				if(m1Players.isEmpty()) {
 					return 1;
 				}
-				if(m2 == null) {
+				if(m2Players.isEmpty()) {
 					return -1;
 				}
-				// waiting matches
-				boolean m1Status = waiting.contains(m1);
-				boolean m2Status = waiting.contains(m2);
-				int compare = m1Status == m2Status ? 0 : (m1Status ? -1 : 1);
-				if(compare != 0) {
-					return compare;
+				Collections.sort(m1Players, lastPlayedComp);
+				Collections.sort(m2Players, lastPlayedComp);
+				Player p1 = m1Players.get(0);
+				Player p2 = m2Players.get(0);
+				if(p1 == null && p2 == null) {
+					return 0;
 				}
-				// matches whose mirror matches are playing or are complete
-				Match m1Mirror = m1.getMirrorMatch();
-				Match m2Mirror = m2.getMirrorMatch();
-				m1Status = current.contains(m1Mirror) || current.isComplete(m1Mirror);
-				m2Status = current.contains(m2Mirror) || current.isComplete(m2Mirror);
-				compare = m1Status == m2Status ? 0 : (m1Status ? -1 : 1);
-				if(compare != 0) {
-					return compare;
+				if(p1 == null) {
+					return 1;
 				}
-				// matches with players whose team mates are already playing
-				m1Status = false;
-				for(Player player : m1.getPlayers()) {
-					if(current.isPlaying(playerToTeammates.get(player))) {
-						m1Status = true;
-						break;
-					}
+				if(p2 == null) {
+					return -1;
 				}
-				m2Status = false;
-				for(Player player : m2.getPlayers()) {
-					if(current.isPlaying(playerToTeammates.get(player))) {
-						m2Status = true;
-						break;
-					}
+				// players who have not played yet (null dates) should be treated as the earlier one
+				Date d1 = p1.getLastMatchTime();
+				Date d2 = p2.getLastMatchTime();
+				if(d1 == null && d2 == null) {
+					return 0;
 				}
-				compare = m1Status == m2Status ? 0 : (m1Status ? -1 : 1);
-				if(compare != 0) {
-					return compare;
+				if(d1 == null) {
+					return -1;
 				}
-				// compare the percent complete for a level in an event
-				String id1 = m1.getEvent().getName() + " - " + m1.getLevel();
-				String id2 = m2.getEvent().getName() + " - " + m2.getLevel();
-				EventInfo info1 = eventMap.get(id1);
-				if(info1 == null) {
-					info1 = new EventInfo(m1.getEvent().getMatches(m1.getLevel()));
-					eventMap.put(id1, info1);
+				if(d2 == null) {
+					return 1;
 				}
-				EventInfo info2 = eventMap.get(id2);
-				if(info2 == null) {
-					info2 = new EventInfo(m2.getEvent().getMatches(m2.getLevel()));
-					eventMap.put(id2, info2);
-				}
-				// we want to play the matches from the level that's closer to being complete first
-				compare = Math.round((float) info2.getPercentComplete()) - Math.round((float) info1.getPercentComplete());
-				if(compare == 0) {
-					compare = info1.getNumberOfMatches() - info2.getNumberOfMatches();
-				}
-				// compare match placement in the bracket
-				return compare == 0 ? m2.getMatchLevel() - m1.getMatchLevel() : compare;
+				return d1.compareTo(d2);
 			}
 		};
 		// sort the matches
 		boolean canIncrementTime = true;
-		HashMap<Match, List<Match>> feederMatches = new HashMap<Match, List<Match>>();
 		ArrayList<Match> sorted = new ArrayList<Match>();
-		while(!playerQueue.isEmpty()) {
-			// add all the playable matches
-			while(!playerQueue.isEmpty()) {
-				int index = 0;
-				Pair<Match, Match> selectedMatch = null;
-				Pair<Date, LinkedHashSet<Player>> entry = playerQueue.get(index++);
-				// get the most important match
-				while(entry != null) {
-					boolean playerNeedsRest = needsRest(tournament.getLongTimeBetweenMatches(), entry.getKey(), current.getCurrentDate());
-					for(Player player : entry.getValue()) {
-						// look through this player's potential matches and try to find one we can play
-						for(Match match : playerToMatches.get(player)) {
-							// if this match has already been selected, we should continue looking
-							if(selectedMatch != null && (selectedMatch.getKey().equals(match) || selectedMatch.getValue().equals(match))) {
-								continue;
-							}
-							// if this match isn't waiting for other matches and we have a player who can't play/needs rest, skip this match
-							if((playerNeedsRest || current.isPlaying(player)) && !waiting.contains(match)) {
-								continue;
-							}
-							// select the more important match
-							Match matchToPlay = getMatchToPlay(match, tournament.getLongTimeBetweenMatches(), unsorted, current, feederMatches, matchComp);
-							if(matchToPlay == null) {
-								continue;
-							}
-							// if one of the players has requested a delay, then we can't play this match
-							if(hasRequestedDelay(matchToPlay, current)) {
-								continue;
-							}
-							if(selectedMatch == null) {
-								selectedMatch = new Pair<Match, Match>(match, matchToPlay);
-							}
-							else {
-								int compare = matchComp.compare(selectedMatch.getValue(), matchToPlay);
-								if(compare > 0 || (compare == 0 && matchComp.compare(selectedMatch.getKey(), match) > 0)) {
-									selectedMatch = new Pair<Match, Match>(match, matchToPlay);
-								}
-							}
-						}
+		while(!matchesToSort.isEmpty()) {
+			// find the most important match that can currently be played
+			boolean addedMatch = false;
+			for(int i = 0; i < matchesToSort.size(); ++i) {
+				Match match = matchesToSort.get(i);
+				if(current.isPlaying(match.getPlayers()) || hasRequestedDelay(match, current)) {
+					continue;
+				}
+				addedMatch = true;
+				Integer impact = matchImpact.get(match);
+				for(int j = i + 1; j < matchesToSort.size() && impact.equals(matchImpact.get(matchesToSort.get(j))); ++j) {
+					Match next = matchesToSort.get(j);
+					if(current.isPlaying(next.getPlayers()) || hasRequestedDelay(next, current)) {
+						continue;
 					}
-					entry = playerQueue.get(index++);
-				}
-				// if we couldn't find a match, exit the loop and make some changes to our sorting algorithm
-				if(selectedMatch == null) {
-					break;
-				}
-				canIncrementTime = true;
-				// check the mirror match
-				LinkedHashSet<Match> selectedMatches = new LinkedHashSet<Match>();
-				selectedMatches.add(selectedMatch.getValue());
-				Match mirror = getMatchToPlay(selectedMatch.getValue().getMirrorMatch(), tournament.getLongTimeBetweenMatches(), unsorted, current, feederMatches, matchComp);
-				if(mirror != null && !hasRequestedDelay(mirror, current)) {
-					selectedMatches.add(mirror);
-				}
-				// adding the selected matches to the list of current matches
-				for(Match match : selectedMatches) {
-					sorted.add(match);
-					// update the player queue
-					for(Player player : match.getPlayers()) {
-						Date key = current.getlastPlayedDate(player);
-						LinkedHashSet<Player> players = playerQueue.get(key).getValue();
-						players.remove(player);
-						if(players.isEmpty()) {
-							playerQueue.remove(key);
-						}
+					if(matchComp.compare(match, next) > 0) {
+						match = next;
+						i = j;
 					}
-					Date endDate = current.add(match);
-					// add the remaining matches back into the player queue
-					for(Player player : match.getPlayers()) {
-						List<Match> possibleMatches = playerToMatches.get(player);
-						possibleMatches.remove(match);
-						if(!possibleMatches.isEmpty()) {
-							playerQueue.add(endDate, player);
-						}
-					}
-					// remove the match from any sort groups they might be in
-					initial.remove(match);
-					waiting.remove(match);
 				}
+				match = matchesToSort.remove(i);
+				sorted.add(match);
+				current.add(match);
+				break;
 			}
-			// we couldn't add any more matches regularly, so we'll have to make some changes
-			if(current.size() > 0) {
-				// increment the time by removing the first match
-				current.removeFirstMatch();
-			}
-			else if(canIncrementTime) {
-				// try to add more matches by incrementing the time
-				canIncrementTime = false;
-				current.incrementCurrentDate();
+			if(!addedMatch) {
+				// we couldn't add any more matches regularly, so we'll have to make some changes
+				if(current.size() > 0) {
+					// increment the time by removing the first match
+					current.removeFirstMatch();
+				}
+				else if(canIncrementTime) {
+					// try to add more matches by incrementing the time
+					canIncrementTime = false;
+					current.incrementCurrentDate();
+				}
+				else {
+					// nothing else we can do so just add all the remaining matches
+					sorted.addAll(matchesToSort);
+					matchesToSort.clear();
+				}
 			}
 			else {
-				// there's nothing else we can do, just add all the rest of the matches
-				while(!playerQueue.isEmpty()) {
-					Pair<Date, LinkedHashSet<Player>> entry = playerQueue.poll();
-					for(Player player : entry.getValue()) {
-						List<Match> playerMatches = playerToMatches.get(player);
-						while(!playerMatches.isEmpty()) {
-							Match match = playerMatches.get(0);
-							for(Player matchPlayer : match.getPlayers()) {
-								playerToMatches.get(matchPlayer).remove(match);
-							}
-							sorted.add(match);
-						}
-					}
-				}
+				canIncrementTime = true;
 			}
 		}
 		// attempt to honor the requested time
@@ -358,56 +284,6 @@ public class TournamentUtils {
 		return sorted;
 	}
 	
-	private static Match getMatchToPlay(Match match, long waitTime, LinkedHashSet<Match> unsorted, CurrentMatchQueue current, HashMap<Match, List<Match>> feederMatches, Comparator<Match> matchComp) {
-		Match matchToPlay = null;
-		if(match == null || current.isComplete(match)) {
-			return matchToPlay;
-		}
-		int previousCount = 0;
-		List<Match> previousMatches = feederMatches.get(match);
-		if(previousMatches == null) {
-			previousMatches = new ArrayList<Match>();
-			feederMatches.put(match, previousMatches);
-		}
-		if(match.getTeam1() == null) {
-			Match toT1 = previousMatches.size() == previousCount ? match.getToTeam1Match(false) : previousMatches.get(previousCount);
-			if(toT1 != null && previousMatches.size() == previousCount) {
-				previousMatches.add(toT1);
-			}
-			++previousCount;
-			matchToPlay = getMatchToPlay(toT1, waitTime, unsorted, current, feederMatches, matchComp);
-		}
-		if(match.getTeam2() == null) {
-			Match toT2 = previousMatches.size() == previousCount ? match.getToTeam2Match(false) : previousMatches.get(previousCount);
-			if(toT2 != null && previousMatches.size() == previousCount) {
-				previousMatches.add(toT2);
-			}
-			++previousCount;
-			Match other = getMatchToPlay(toT2, waitTime, unsorted, current, feederMatches, matchComp);
-			matchToPlay = matchComp.compare(matchToPlay, other) <= 0 ? matchToPlay : other;
-		}
-		for(Match previous : previousMatches) {
-			if(!current.isComplete(previous) || current.isPlaying(previous.getPlayers()) || needsRest(waitTime, getLastPlayedTime(previous, current), current.getCurrentDate())) {
-				return matchToPlay;
-			}
-		}
-		if(unsorted.contains(match) && !current.isPlaying(match.getPlayers()) && !needsRest(waitTime, getLastPlayedTime(match, current), current.getCurrentDate())) {
-			return match;
-		}
-		return matchToPlay;
-	}
-	
-	private static boolean isInitialMatch(Match match) {
-		boolean isInitial = true;
-		if(match.getTeam1() != null && match.getTeam1().getMatchesPlayed() > 0) {
-			isInitial = false;
-		}
-		if(match.getTeam2() != null && match.getTeam2().getMatchesPlayed() > 0) {
-			isInitial = false;
-		}
-		return isInitial;
-	}
-	
 	private static boolean hasRequestedDelay(Match match, CurrentMatchQueue current) {
 		for(Player player : match.getPlayers()) {
 			if(player.getRequestedDelay() != null && player.getRequestedDelay().after(current.getCurrentDate())) {
@@ -417,25 +293,20 @@ public class TournamentUtils {
 		return false;
 	}
 	
-	private static Date getLastPlayedTime(Match match, CurrentMatchQueue current) {
-		Date lastPlayed = null;
-		for(Player player : match.getPlayers()) {
-			Date lastMatchTime = current.getlastPlayedDate(player);
-			if((lastPlayed == null && lastMatchTime != null) || (lastPlayed != null && lastMatchTime != null && lastPlayed.before(lastMatchTime))) {
-				lastPlayed = lastMatchTime;
-			}
+	private static void updateFeederMatchImpact(Match match, int incAmount, int additionalImpact, HashMap<Match, Integer> matchImpact) {
+		if(match == null) {
+			return;
 		}
-		return lastPlayed;
-	}
-	
-	private static boolean needsRest(long waitTime, Date lastPlayed, Date currentDate) {
-		if(lastPlayed == null) {
-			return false;
+		Integer currentImpact = matchImpact.get(match);
+		int newImpact = currentImpact != null ? currentImpact.intValue() : 0;
+		newImpact += incAmount + additionalImpact;
+		matchImpact.put(match, Integer.valueOf(newImpact));
+		if(match.getTeam1() == null) {
+			updateFeederMatchImpact(match.getDefaultToTeam1Match(), incAmount, additionalImpact + incAmount, matchImpact);
 		}
-		if(waitTime <= 0) {
-			return false;
+		if(match.getTeam2() == null) {
+			updateFeederMatchImpact(match.getDefaultToTeam2Match(), incAmount, additionalImpact + incAmount, matchImpact);
 		}
-		return currentDate.getTime() - lastPlayed.getTime() < waitTime;
 	}
 	
 	/**

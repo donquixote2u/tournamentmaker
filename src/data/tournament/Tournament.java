@@ -24,7 +24,7 @@ import data.team.Team;
 
 public class Tournament implements Serializable {
 	private static final long serialVersionUID = 5748474555295789647L;
-	public static final int VERSION = 9;
+	public static final int VERSION = 10;
 	public static final int COMPATIBLE = 5;
 	private transient List<Player> newPlayers;
 	private transient TreeMap<Team, List<Team>> newTeams;

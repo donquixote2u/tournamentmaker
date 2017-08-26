@@ -400,6 +400,7 @@ public class TournamentViewManager {
 		scrollPane.setBorder(BorderFactory.createEmptyBorder());
 		scrollPane.setPreferredSize(new Dimension(0, 150));
 		scrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER);
+		scrollPane.getHorizontalScrollBar().setUnitIncrement(20);
 		JPanel courtsPanelWrapper = new JPanel(new BorderLayout());
 		courtsPanelWrapper.add(scrollPane, BorderLayout.CENTER);
 		main.add(courtsPanelWrapper,  new GridBagConstraints(0, 0, 1, 1, 1.0, 0.0, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(10, 0, 0, 0), 0, 0));
@@ -685,6 +686,7 @@ public class TournamentViewManager {
 		scrollPane.setBorder(BorderFactory.createEmptyBorder());
 		scrollPane.setPreferredSize(new Dimension(0, 65));
 		scrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER);
+		scrollPane.getHorizontalScrollBar().setUnitIncrement(5);
 		JPanel eventsPanelWrapper = new JPanel(new BorderLayout());
 		eventsPanelWrapper.add(scrollPane, BorderLayout.CENTER);
 		main.add(eventsPanelWrapper,  new GridBagConstraints(0, 3, 1, 1, 1.0, 0.0, GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(10, 0, 10, 0), 0, 0));
