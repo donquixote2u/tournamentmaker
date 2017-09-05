@@ -78,8 +78,15 @@ public class TournamentUtils {
 		});
 		// get a mapping of players to team mates and the number of players each match impacts
 		final CurrentMatchQueue current = new CurrentMatchQueue(tournament);
-		final HashMap<Match, Integer> matchImpact = new HashMap<Match, Integer>();
+		final HashMap<Match, Double> matchImpact = new HashMap<Match, Double>();
+		final HashMap<Player, Integer> playerMatchCount = new HashMap<Player, Integer>();
 		for(Match match : matchesToSort) {
+			// update the player match count
+			for(Player player : match.getPlayers()) {
+				Integer count = playerMatchCount.get(player);
+				count = count == null ? Integer.valueOf(1) : Integer.valueOf(count.intValue() + 1);
+				playerMatchCount.put(player, count);
+			}
 			// update the impact of the feeder matches
 			if(match.getTeam1() == null) {
 				updateFeederMatchImpact(match.getToTeam1Match(false), match.getTeam2().getPlayers().size() * 2, 0, matchImpact);
@@ -88,20 +95,36 @@ public class TournamentUtils {
 				updateFeederMatchImpact(match.getToTeam2Match(false), match.getTeam1().getPlayers().size() * 2, 0, matchImpact);
 			}
 			// calculate the number of other players this match impacts
-			Integer currentImpact = matchImpact.get(match);
-			int impact = currentImpact != null ? currentImpact.intValue() : 0;
+			Double currentImpact = matchImpact.get(match);
+			double impact = currentImpact != null ? currentImpact.doubleValue() : 0;
 			if(match.getTeam1() != null && match.getTeam2() != null && match.getMirrorMatch() != null && match.getMirrorMatch().getStart() != null && !match.getMirrorMatch().isComplete()) {
-				impact += match.getMirrorMatch().getPlayers().size() / 2;
+				impact += match.getMirrorMatch().getPlayers().size() / 2.0;
 			}
-			matchImpact.put(match, Integer.valueOf(impact));
+			matchImpact.put(match, Double.valueOf(impact));
+		}
+		// calculate the player to match impact and then sort everything
+		final HashMap<Match, Double> playerMatchImpact = new HashMap<Match, Double>();
+		for(Match match: matchesToSort) {
+			double playerImpact = 0;
+			for(Player player : match.getPlayers()) {
+				playerImpact += playerMatchCount.get(player).intValue();
+			}
+			playerImpact /= match.getPlayers().size();
+			playerMatchImpact.put(match, playerImpact);
 		}
 		Collections.sort(matchesToSort, new Comparator<Match>() {
 			public int compare(Match m1, Match m2) {
+				int compare = playerMatchImpact.get(m2).compareTo(playerMatchImpact.get(m1));
+				if(compare != 0) {
+					return compare;
+				}
 				return matchImpact.get(m2).compareTo(matchImpact.get(m1));
 			}
 		});
-		// this comparator sorts the matches by if the match can start and then the last played time
+		// this comparator sorts the matches by if the match can start, then by event progress, and then the last played time
 		final Comparator<Match> matchComp = new Comparator<Match>() {
+			private HashMap<String, EventInfo> eventMap = new HashMap<String, EventInfo>();
+			
 			private Comparator<Player> lastPlayedComp = new Comparator<Player>() {
 				public int compare(Player p1, Player p2) {
 					if(p1 == null && p2 == null) {
@@ -134,6 +157,25 @@ public class TournamentUtils {
 				boolean m2Waiting = m2.getTeam1() == null || m2.getTeam2() == null;
 				if(m1Waiting != m2Waiting) {
 					return m1Waiting ? 1 : -1;
+				}
+				// compare the percent complete for a level in an event
+				String id1 = m1.getEvent().getName() + " - " + m1.getLevel();
+				String id2 = m2.getEvent().getName() + " - " + m2.getLevel();
+				EventInfo info1 = eventMap.get(id1);
+				if(info1 == null) {
+					info1 = new EventInfo(m1.getEvent().getMatches(m1.getLevel()));
+					eventMap.put(id1, info1);
+				}
+				EventInfo info2 = eventMap.get(id2);
+				if(info2 == null) {
+					info2 = new EventInfo(m2.getEvent().getMatches(m2.getLevel()));
+					eventMap.put(id2, info2);
+				}
+				// we want to play the matches from the level that's closer to being complete first
+				int m1Percent = Math.round((float) info1.getPercentComplete());
+				int m2Percent = Math.round((float) info2.getPercentComplete());
+				if(m1Percent != m2Percent) {
+					return m2Percent - m1Percent;
 				}
 				// last played time
 				List<Player> m1Players = m1.getPlayers();
@@ -187,8 +229,9 @@ public class TournamentUtils {
 					continue;
 				}
 				addedMatch = true;
-				Integer impact = matchImpact.get(match);
-				for(int j = i + 1; j < matchesToSort.size() && impact.equals(matchImpact.get(matchesToSort.get(j))); ++j) {
+				Double playerImpact = playerMatchImpact.get(match);
+				Double impact = matchImpact.get(match);
+				for(int j = i + 1; j < matchesToSort.size() && ((playerImpact.compareTo(Double.valueOf(1.0)) > 0 && playerImpact.equals(playerMatchImpact.get(matchesToSort.get(j)))) || (playerImpact.equals(Double.valueOf(1.0)) && impact.equals(matchImpact.get(matchesToSort.get(j))))); ++j) {
 					Match next = matchesToSort.get(j);
 					if(current.isPlaying(next.getPlayers()) || hasRequestedDelay(next, current)) {
 						continue;
@@ -293,14 +336,14 @@ public class TournamentUtils {
 		return false;
 	}
 	
-	private static void updateFeederMatchImpact(Match match, int incAmount, int additionalImpact, HashMap<Match, Integer> matchImpact) {
+	private static void updateFeederMatchImpact(Match match, int incAmount, int additionalImpact, HashMap<Match, Double> matchImpact) {
 		if(match == null) {
 			return;
 		}
-		Integer currentImpact = matchImpact.get(match);
-		int newImpact = currentImpact != null ? currentImpact.intValue() : 0;
+		Double currentImpact = matchImpact.get(match);
+		double newImpact = currentImpact != null ? currentImpact.doubleValue() : 0;
 		newImpact += incAmount + additionalImpact;
-		matchImpact.put(match, Integer.valueOf(newImpact));
+		matchImpact.put(match, Double.valueOf(newImpact));
 		if(match.getTeam1() == null) {
 			updateFeederMatchImpact(match.getDefaultToTeam1Match(), incAmount, additionalImpact + incAmount, matchImpact);
 		}
