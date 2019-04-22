@@ -96,7 +96,7 @@ public class TournamentUI extends JFrame {
 	private Map<String, Class<? extends Event>> events;
 	private Map<String, Class<? extends TeamModifier>> modifiers;
 	private FileChooser fileChooser, importFileChooser;
-	private JButton edit, close, save, saveAs, addEvent, addPlayer, addTeam, importData, print;
+	private JButton edit, close, save, saveAs, addEvent, addPlayer, addTeam, autoPair, importData, print;
 	private TournamentViewManager tournamentViewManager;
 	
 	public TournamentUI(Map<String, Class<? extends Event>> events, Map<String, Class<? extends TeamModifier>> modifiers) {
@@ -181,6 +181,7 @@ public class TournamentUI extends JFrame {
 		addEvent.setEnabled(enabled);
 		addPlayer.setEnabled(enabled);
 		addTeam.setEnabled(enabled);
+                autoPair.setEnabled(enabled); // added 4/19 bvw
 		importData.setEnabled(enabled);
 		print.setEnabled(enabled);
 	}
@@ -1349,11 +1350,25 @@ public class TournamentUI extends JFrame {
 						return;
 					}
 				}
+                                // new test added for players being already in a team of same type  22/4/19 bvw
+                                List<Team> teams= tournamentViewManager.getTournament().getTeams();
+                                for(Team allTeams : teams) {
+                                   if(allTeams.getTeamType() == team.getTeamType()) {
+                                       for(Player allplayers :  allTeams.getPlayers()) {
+                                           for(Player newplayer : team.getPlayers()) {
+                                               if(newplayer==allplayers) {
+                                                message.error("Player already in team.");
+					return;   
+                                               }
+                                           }
+                                   }
+                                   }
+                                }
 				if(!team.isValid()) {
 					message.error("This is not a valid team.");
 					return;
 				}
-				tournamentViewManager.getTournament().addTeam(team);
+                            	tournamentViewManager.getTournament().addTeam(team);
 				name.setText(null);
 				seed.setText(null);
 				for(int i = 0; i < playersPanel.getComponentCount(); i += 2) {
@@ -1545,8 +1560,18 @@ public class TournamentUI extends JFrame {
 				openNewTeamDialog();
 			}
 		});
-		addTeam.setToolTipText("Add Team");
+                addTeam.setToolTipText("Add Team");
 		toolbar.add(addTeam);
+                // new button to create pairs 21/4/19 bvw
+                autoPair = new JButton(new ImageIcon(Images.AUTO_PAIR));
+		autoPair.setFocusable(false);
+		autoPair.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent event) {
+				openNewTeamDialog();
+			}
+		});
+		autoPair.setToolTipText("Auto Pair");
+		toolbar.add(autoPair);
 		importData = new JButton(new ImageIcon(Images.IMPORT_DATA));
 		importData.setFocusable(false);
 		importData.addActionListener(new ActionListener() {
