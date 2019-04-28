@@ -84,6 +84,7 @@ import data.team.modifier.CreatableTeamModifier;
 import data.team.modifier.TeamModifier;
 import data.tournament.Tournament;
 import data.tournament.TournamentUtils;
+import ui.component.dialog.AutoPairDialog;
 
 @SuppressWarnings("serial")
 public class TournamentUI extends JFrame {
@@ -1256,7 +1257,7 @@ public class TournamentUI extends JFrame {
 		return true;
 	}
 	
-	private void openNewTeamDialog() {
+	private void openNewTeamDialog() {   
 		if(!checkForExistingTeamTypes()) {
 			return;
 		}
@@ -1353,15 +1354,15 @@ public class TournamentUI extends JFrame {
                                 // new test added for players being already in a team of same type  22/4/19 bvw
                                 List<Team> teams= tournamentViewManager.getTournament().getTeams();
                                 for(Team allTeams : teams) {
-                                   if(allTeams.getTeamType() == team.getTeamType()) {
-                                       for(Player allplayers :  allTeams.getPlayers()) {
+                                   if(allTeams.getTeamType().equals(team.getTeamType())) {
+                                       for(Player anyplayer :  allTeams.getPlayers()) {
                                            for(Player newplayer : team.getPlayers()) {
-                                               if(newplayer==allplayers) {
+                                               if(newplayer==anyplayer) {
                                                 message.error("Player already in team.");
-					return;   
+                                                return;   
                                                }
                                            }
-                                   }
+                                        }
                                    }
                                 }
 				if(!team.isValid()) {
@@ -1398,7 +1399,11 @@ public class TournamentUI extends JFrame {
 		dialog.setLocationRelativeTo(this);
 		dialog.setVisible(true);
 	}
-	
+        // 24/4/19 bvw New Button/Function to auto generate doubles pairings
+	public void doAutoPair() {
+                this.openNewTeamDialog();
+        }
+        
 	private void createTournamentView() {
 		JTabbedPane displayPane = new JTabbedPane(JTabbedPane.TOP, JTabbedPane.SCROLL_TAB_LAYOUT);
 		tournamentViewManager = new TournamentViewManager(this, displayPane, Color.WHITE);
@@ -1567,11 +1572,12 @@ public class TournamentUI extends JFrame {
 		autoPair.setFocusable(false);
 		autoPair.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent event) {
-				openNewTeamDialog();
+				AutoPairDialog dialog = new AutoPairDialog(TournamentUI.this, tournamentViewManager);
 			}
 		});
 		autoPair.setToolTipText("Auto Pair");
 		toolbar.add(autoPair);
+                
 		importData = new JButton(new ImageIcon(Images.IMPORT_DATA));
 		importData.setFocusable(false);
 		importData.addActionListener(new ActionListener() {
