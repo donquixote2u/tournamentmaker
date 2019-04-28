@@ -1,6 +1,7 @@
 # tournamentmaker
 
 fork of sourceforge (subversion) repo of tournamentmaker by cmjy;  compiled under Netbeans and openjdk 8. (java 11 has Swing deprecation issues)
+development branch ("autopair") to add automatic generation of doubles pairs for club play, etc.
 
 This program is intended for small tournament organizers. The goal is to allow organizers without much experience to setup and run a tournament without hours of preparation. Running a tournament is hard, especially when there are only a few people helping. With the software doing all the work, organizers will be more relaxed and it'll be a better experience for everyone.
 
