@@ -60,8 +60,11 @@ import ui.main.TournamentViewManager;
 import data.event.Event;
 import data.event.RoundRobinEvent;
 import data.player.Player;
+import data.team.BaseModifierTeam;
 import data.team.Team;
 import data.tournament.TournamentUtils;
+import java.util.Enumeration;
+import java.util.Iterator;
 
 public class EventTeamSelector extends JDialog {
 	private static final long serialVersionUID = -860682900368616436L;
@@ -251,6 +254,23 @@ public class EventTeamSelector extends JDialog {
 		getContentPane().setLayout(new BorderLayout());
 		getContentPane().add(root, BorderLayout.CENTER);
 		JPanel buttons = new JPanel(new FlowLayout());
+                
+                //  new button to automatically match teams 2/5/19 bvw
+               	JButton automatch = new JButton("Automatch");
+		automatch.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+                        List<Team> theseTeams = new ArrayList<Team>();
+                        for (int i=0; i<teams.size(); i++) { 
+                            if(!(teams.get(i)==null)) {
+                                theseTeams.add(teams.get(i));
+                                }
+                            } 
+                        currentEvent.setTeams(theseTeams);
+                        buildUI();
+                        }
+            	});
+		buttons.add(automatch);
+
 		JButton preview = new JButton("Preview Event");
 		preview.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
