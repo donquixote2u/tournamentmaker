@@ -1399,11 +1399,7 @@ public class TournamentUI extends JFrame {
 		dialog.setLocationRelativeTo(this);
 		dialog.setVisible(true);
 	}
-        // 24/4/19 bvw New Button/Function to auto generate doubles pairings
-	public void doAutoPair() {
-                this.openNewTeamDialog();
-        }
-        
+       
 	private void createTournamentView() {
 		JTabbedPane displayPane = new JTabbedPane(JTabbedPane.TOP, JTabbedPane.SCROLL_TAB_LAYOUT);
 		tournamentViewManager = new TournamentViewManager(this, displayPane, Color.WHITE);
