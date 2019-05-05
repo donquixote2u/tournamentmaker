@@ -9,7 +9,6 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 
-import data.event.Event;
 import data.player.Player;
 import data.team.Team;
 import java.awt.BorderLayout;
@@ -19,8 +18,11 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import static java.lang.Math.abs;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.Random;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JDialog;
@@ -37,7 +39,8 @@ public class AutoPairDialog extends JDialog {
   	private static final long serialVersionUID = 2564561655115801740L;
        	private TournamentViewManager tournamentViewManager;
         private String teamType; 
-        private int teamCount;
+        private int playerCount;
+        private int gradeAvg;
         
         public AutoPairDialog(JFrame owner, TournamentViewManager tournamentViewManager) {
                 
@@ -64,55 +67,57 @@ public class AutoPairDialog extends JDialog {
                         // setTeamType(teamType);
                         }
                  }); 
-                teamCount=0;
                 setTeamType(type.getSelectedItem().toString());
-                if(!(teamType==null)) {teamCount=tournamentViewManager.getTournament().getTeamByType(teamType).getNumberOfPlayers();}   
-                message.success("Teamcount "+teamCount);    
                 dialog.getContentPane().add(panel, BorderLayout.CENTER);
                 // build list of players eligible for pairing
                 List <Player> players= new ArrayList<Player>();
-                int i=0; // index 
+                playerCount=0; // index
+                int gradeSum=0;  // total of all player grades
 		for(Player player : tournamentViewManager.getTournament().getPlayers()) {
 			if(player != null && player.isCheckedIn()) {
                                 player.setInGame(false);
-                                players.add(i,player);i++;
+                                players.add(playerCount,player);playerCount++;
+                                gradeSum=gradeSum+Integer.valueOf(player.getLevel());
 			}
 		}
+                gradeAvg=gradeSum / playerCount;
+                // Collections.shuffle(players);               // randomise players for matching
+                message.success("Grade Avg = "+ gradeAvg);
 		JPanel buttons = new JPanel(new FlowLayout());
 		JButton ok = new JButton("Make Teams");
 		ok.addActionListener(new ActionListener() {
 			@SuppressWarnings("unchecked")
 			public void actionPerformed(ActionEvent event) {
-                        // for each player in list, traverse the list until eligible partner found     
-                        int indx=0;
-                        while (indx < players.size()) { 
-                            Player player1 = players.get(indx);
+                        // for each player in list, traverse the list until best eligible partner found     
+                        for (Player player1 : players) { 
+                            System.out.println(player1.getName() + " matching:");
                             if(AlreadyInTeam(tournamentViewManager,player1)) {
-                                indx++;
                                 continue; }
-                            int indy=0;
-                            while(indy < players.size()) {
-                                if(indy==indx) {
-                                    indy++;
-                                    continue;} // dont match with self!
-                                Player player2 = players.get(indy);
-                                Team team = tournamentViewManager.getTournament().getTeamByType(teamType).newInstance();
+                            int ylim=players.size();    // set loop control to size of list
+                            Random rand = new Random();
+                            int y = rand.nextInt(ylim); // randomize start point
+                            int ycount=0;                          // use count to control loop 
+                            Player pairCandidate = new Player(player1.getName(),true);        // dummy instance
+                            pairCandidate.setLevel("99");
+                            Team team = tournamentViewManager.getTournament().getTeamByType(teamType).newInstance();
+                            while(ycount<(ylim-1)) {
+                                ycount++;
+                                y++; if(!(y<ylim)) {y=0;}              // if over top of list, back to start
+                                Player player2 = players.get(y);
+                                if((player2.getName()==player1.getName()) || (AlreadyInTeam(tournamentViewManager,player2)) ) {
+                                    continue;} // dont match with self or an already matched player!
                                 team.setPlayer(0, player1);
                                 team.setPlayer(1, player2);
-                                if((team.isValid()) && !(AlreadyInTeam(tournamentViewManager,player2))) { 
-                                    tournamentViewManager.getTournament().addTeam(team);
-                                    players.remove(indy);
-                                    players.remove(indx);
-                                    break;
-                                    }
-                                else {
-                                    indy++; 
-                                    }
+                                if(!(team.isValid())) {continue;}
+                                System.out.println("considering " + player2.getName());
+                                pairCandidate=checkGradeDiffs(player1,player2,pairCandidate);
                                 }
-                                indx++;
+                                if(!(player1.getName()==pairCandidate.getName()) ) { 
+                                    team.setPlayer(1, pairCandidate);
+                                    tournamentViewManager.getTournament().addTeam(team);
+                                    System.out.println(player1.getName() + " matched with " + pairCandidate.getName());
+                                    }
 			    }
-                        teamCount=tournamentViewManager.getTournament().getTeamByType(teamType).getNumberOfPlayers();
-                        message.success("Teamcount "+teamCount);
                         }
                 });
 		buttons.add(ok);
@@ -158,4 +163,11 @@ public class AutoPairDialog extends JDialog {
         return false;            
         }
         
+        private Player checkGradeDiffs (Player player1, Player player2, Player pairCandidate ) {
+        int gradeDiff1 = abs((this.gradeAvg*2)-(Integer.valueOf(player1.getLevel())+Integer.valueOf(pairCandidate.getLevel())));  
+        int gradeDiff2 = abs((this.gradeAvg*2)-(Integer.valueOf(player1.getLevel())+Integer.valueOf(player2.getLevel())));   
+        System.out.println( "this diff "+gradeDiff2+"; candidate diff "+gradeDiff1);
+        if(gradeDiff2<gradeDiff1) {return player2; } else { return pairCandidate; }
+        }
+       
 	}
