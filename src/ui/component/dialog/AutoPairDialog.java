@@ -75,13 +75,18 @@ public class AutoPairDialog extends JDialog {
                 int gradeSum=0;  // total of all player grades
 		for(Player player : tournamentViewManager.getTournament().getPlayers()) {
 			if(player != null && player.isCheckedIn()) {
-                                player.setInGame(false);
-                                players.add(playerCount,player);playerCount++;
-                                gradeSum=gradeSum+Integer.valueOf(player.getLevel());
+                                Player playerData = new Player(player.getName(),false); 
+                                playerData.setIsMale(player.isMale());
+                                playerData.setCheckedIn(player.isCheckedIn());
+                                int calcLevel = Integer.valueOf(player.getLevel());
+                                if(player.isMale()) {calcLevel=calcLevel-2;}
+                                playerData.setLevel(Integer.toString(calcLevel));
+                                players.add(playerCount,playerData);playerCount++;
+                                gradeSum=gradeSum+calcLevel;
 			}
 		}
                 gradeAvg=gradeSum / playerCount;
-                // Collections.shuffle(players);               // randomise players for matching
+                Collections.shuffle(players);               // randomise players for matching
                 message.success("Grade Avg = "+ gradeAvg);
 		JPanel buttons = new JPanel(new FlowLayout());
 		JButton ok = new JButton("Make Teams");
@@ -104,12 +109,15 @@ public class AutoPairDialog extends JDialog {
                                 ycount++;
                                 y++; if(!(y<ylim)) {y=0;}              // if over top of list, back to start
                                 Player player2 = players.get(y);
+                                System.out.print("considering " + player2.getName());
                                 if((player2.getName()==player1.getName()) || (AlreadyInTeam(tournamentViewManager,player2)) ) {
+                                    System.out.println(" invalid player");
                                     continue;} // dont match with self or an already matched player!
                                 team.setPlayer(0, player1);
                                 team.setPlayer(1, player2);
-                                if(!(team.isValid())) {continue;}
-                                System.out.println("considering " + player2.getName());
+                                if(!(team.isValid())) {
+                                    System.out.println(" invalid team");
+                                    continue;}
                                 pairCandidate=checkGradeDiffs(player1,player2,pairCandidate);
                                 }
                                 if(!(player1.getName()==pairCandidate.getName()) ) { 
@@ -154,7 +162,7 @@ public class AutoPairDialog extends JDialog {
                     for(Team eachTeam : teams) {
                         if(eachTeam.getTeamType().equals(this.getTeamType())) {
                             for(Player anyplayer : eachTeam.getPlayers()) {
-                                  if(player==anyplayer) {
+                                  if(player.getName()==anyplayer.getName()) {
                                         return true;   
                                     }
                             }
@@ -166,7 +174,7 @@ public class AutoPairDialog extends JDialog {
         private Player checkGradeDiffs (Player player1, Player player2, Player pairCandidate ) {
         int gradeDiff1 = abs((this.gradeAvg*2)-(Integer.valueOf(player1.getLevel())+Integer.valueOf(pairCandidate.getLevel())));  
         int gradeDiff2 = abs((this.gradeAvg*2)-(Integer.valueOf(player1.getLevel())+Integer.valueOf(player2.getLevel())));   
-        System.out.println( "this diff "+gradeDiff2+"; candidate diff "+gradeDiff1);
+        System.out.println( " this diff "+gradeDiff2+"; candidate diff "+gradeDiff1);
         if(gradeDiff2<gradeDiff1) {return player2; } else { return pairCandidate; }
         }
        
