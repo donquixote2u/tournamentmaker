@@ -134,7 +134,8 @@ public class CourtDialog extends JDialog {
 	private boolean finishMatch(TournamentViewManager manager) {
 		Match match = (Match) filter.getSelectedItem();
 		Set<Match> newMatches = match.finish();
-		if(newMatches == null) {
+		// this is causing problems with valid result on rr 23/4/19 bvw
+                if(newMatches == null) {
 			JOptionPane.showMessageDialog(this, MatchPanel.INVALID_VALUES, "Error", JOptionPane.ERROR_MESSAGE);
 			return false;
 		}

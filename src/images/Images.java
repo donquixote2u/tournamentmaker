@@ -17,6 +17,7 @@ public class Images {
 	public static final URL ADD_EVENT = Images.class.getResource("addEvent32.png");
 	public static final URL ADD_PLAYER = Images.class.getResource("addPlayer32.png");
 	public static final URL ADD_TEAM = Images.class.getResource("addTeam32.png");
+       	public static final URL AUTO_PAIR = Images.class.getResource("autoPair32.png");
 	public static final URL IMPORT_DATA = Images.class.getResource("importData32.png");
 	public static final URL PRINT = Images.class.getResource("print32.png");
 	public static final URL HELP = Images.class.getResource("help32.png");

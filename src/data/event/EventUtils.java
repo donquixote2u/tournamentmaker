@@ -209,7 +209,7 @@ public class EventUtils {
 	 */
 	public static void setTeamsInMatches(List<Team> teams, List<Match> matches) {
 		if(teams == null || matches == null || teams.size() % 2 != 0 || teams.size() / 2 != matches.size()) {
-			throw new RuntimeException("invalid paramters for team and/or matches");
+			throw new RuntimeException("invalid parameters for team and/or matches");
 		}
 		for(int i = 0; i < teams.size(); ++i) {
 			matches.get(i / 2).setTeam(teams.get(i), i % 2 == 0);

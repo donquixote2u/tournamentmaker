@@ -1,0 +1,93 @@
+public class AutoPairDialog extends JDialog {
+  	private static final long serialVersionUID = 2564561655115801740L;
+	private TournamentViewManager manager;
+       	private Tournament tournament;
+       	private JPanel teamFields;
+	private boolean result;  
+        
+        public AutoPairDialog(JFrame owner, TournamentViewManager manager) {
+		super(owner );
+		setResizable(false);
+		setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
+		this.manager = manager;
+
+		getContentPane().setLayout(new BorderLayout());
+		 try {
+			 getContentPane().add(getDisplay(), BorderLayout.CENTER);
+                 }
+		 catch(Exception e) {
+			// result = false;
+			// dispose();
+			// return;
+		}
+		JPanel buttons = new JPanel(new FlowLayout());
+		JButton ok = new JButton("Import");
+		ok.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent event) {
+				setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+                                setCursor(null);
+				setEnabledForComponent(getContentPane(), false);
+				setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+				setCursor(null);
+				dispose();
+			}
+		});
+		buttons.add(ok);
+		JButton cancel = new JButton("Cancel");
+		cancel.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent event) {
+				dispose();
+			}
+		});
+		buttons.add(cancel);
+		getContentPane().add(buttons, BorderLayout.PAGE_END);
+		pack();
+		setLocationRelativeTo(owner);
+		setVisible(true);
+}
+        
+       	public boolean getResult() {
+	return result;
+	}
+	
+        private void setEnabledForComponent(Component component, boolean enabled) {
+		if(component == null) {
+			return;
+		}
+		component.setEnabled(enabled);
+		if(component instanceof Container) {
+			for(Component comp : ((Container) component).getComponents()) {
+				setEnabledForComponent(comp, enabled);
+			}
+		}
+	}
+        
+	protected Component getDisplay() {
+		JPanel display = new JPanel();
+		display.setLayout(new BoxLayout(display, BoxLayout.PAGE_AXIS));
+
+		JPanel fields = new JPanel(new GridBagLayout());
+
+		fields.add(new JSeparator(JSeparator.HORIZONTAL), GenericUtils.createGridBagConstraint(0, 1, 1.0));
+	
+		display.add(Box.createVerticalStrut(10));
+                		// teams
+		fields = new JPanel(new GridBagLayout());
+		fields.add(new JLabel("Teams"), GenericUtils.createGridBagConstraint(0, 0, 1.0));
+		fields.add(new JSeparator(JSeparator.HORIZONTAL), GenericUtils.createGridBagConstraint(0, 1, 1.0));
+		display.add(fields);
+		teamFields = new JPanel(new GridBagLayout());
+		List<String> teamTypes = tournament.getTeamTypes();
+		if(teamTypes.isEmpty()) {
+			fields.add(new JLabel("No teams were found in the data file."), GenericUtils.createGridBagConstraint(0, 2, 1.0));
+		}
+		else {
+			for(int i = 0; i < teamTypes.size(); ++i) {
+				teamFields.add(new JCheckBox(teamTypes.get(i)), GenericUtils.createGridBagConstraint(i % 3, i / 3, 0.33));
+			}
+		}
+		display.add(teamFields);
+		return display;
+	}
+	
+	}

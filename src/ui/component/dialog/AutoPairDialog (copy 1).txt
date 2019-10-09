@@ -18,11 +18,8 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import static java.lang.Math.abs;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
-import java.util.Random;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JDialog;
@@ -39,6 +36,7 @@ public class AutoPairDialog extends JDialog {
   	private static final long serialVersionUID = 2564561655115801740L;
        	private TournamentViewManager tournamentViewManager;
         private String teamType; 
+        private int teamCount;
         private int playerCount;
         private int gradeAvg;
         
@@ -67,73 +65,59 @@ public class AutoPairDialog extends JDialog {
                         // setTeamType(teamType);
                         }
                  }); 
+                teamCount=0;
                 setTeamType(type.getSelectedItem().toString());
+                if(!(teamType==null)) {teamCount=tournamentViewManager.getTournament().getTeamByType(teamType).getNumberOfPlayers();}   
+                message.success("Teamcount "+teamCount);    
                 dialog.getContentPane().add(panel, BorderLayout.CENTER);
                 // build list of players eligible for pairing
                 List <Player> players= new ArrayList<Player>();
-                int Fcount=0; int Mcount=0; // index
-                int sumFGrade=0;int sumMGrade=0;  // total of all player grades
+                playerCount=0; // index
+                int gradeSum=0;  // total of players grades
 		for(Player player : tournamentViewManager.getTournament().getPlayers()) {
 			if(player != null && player.isCheckedIn()) {
-                                Player playerData = new Player(player.getName(),false); 
-                                playerData.setIsMale(player.isMale());
-                                playerData.setCheckedIn(player.isCheckedIn());
-                                int calcLevel = Integer.valueOf(player.getLevel());
-                                if(player.isMale()) {calcLevel=calcLevel-2;}
-                                playerData.setLevel(Integer.toString(calcLevel));
-                                players.add(playerCount,playerData);
-                                if(player.isMale())  { 
-                                    Mcount++;
-                                    sumMGrade+=calcLevel; 
-                                    } 
-                                else  {
-                                    Fcount++;
-                                    sumFGrade+=calcLevel; 
-                                }
+                                player.setInGame(false);
+                                players.add(playerCount,player);playerCount++;
+                                gradeSum=gradeSum+Integer.valueOf(player.getLevel());
 			}
 		}
-                playerCount=Mcount+Fcount;
-                gradeAvg=sumFGrade/Fcount+sumMGrade/Mcount;
-                Collections.shuffle(players);               // randomise players for matching
+                gradeAvg=gradeSum / playerCount;
                 message.success("Grade Avg = "+ gradeAvg);
 		JPanel buttons = new JPanel(new FlowLayout());
 		JButton ok = new JButton("Make Teams");
 		ok.addActionListener(new ActionListener() {
 			@SuppressWarnings("unchecked")
 			public void actionPerformed(ActionEvent event) {
-                        // for each player in list, traverse the list until best eligible partner found     
-                        for (Player player1 : players) { 
-                            System.out.println(player1.getName() + " matching:");
+                        // for each player in list, traverse the list until eligible partner found     
+                        int indx=0;
+                        while (indx < players.size()) { 
+                            Player player1 = players.get(indx);
                             if(AlreadyInTeam(tournamentViewManager,player1)) {
+                                indx++;
                                 continue; }
-                            int ylim=players.size();    // set loop control to size of list
-                            Random rand = new Random();
-                            int y = rand.nextInt(ylim); // randomize start point
-                            int ycount=0;                          // use count to control loop 
-                            Player pairCandidate = new Player(player1.getName(),true);        // dummy instance
-                            pairCandidate.setLevel("99");
-                            Team team = tournamentViewManager.getTournament().getTeamByType(teamType).newInstance();
-                            while(ycount<(ylim-1)) {
-                                ycount++;
-                                y++; if(!(y<ylim)) {y=0;}              // if over top of list, back to start
-                                Player player2 = players.get(y);
-                                System.out.print("considering " + player2.getName());
-                                if((player2.getName()==player1.getName()) || (AlreadyInTeam(tournamentViewManager,player2)) ) {
-                                    System.out.println(" invalid player");
+                            int indy=0;
+                            while(indy < players.size()) {
+                                if((indy==indx) || (players.get(indy).isInGame())) {
+                                    indy++;
                                     continue;} // dont match with self or an already matched player!
+                                Player player2 = players.get(indy);
+                                Team team = tournamentViewManager.getTournament().getTeamByType(teamType).newInstance();
                                 team.setPlayer(0, player1);
                                 team.setPlayer(1, player2);
-                                if(!(team.isValid())) {
-                                    System.out.println(" invalid team");
-                                    continue;}
-                                pairCandidate=checkGradeDiffs(player1,player2,pairCandidate);
-                                }
-                                if(!(player1.getName()==pairCandidate.getName()) ) { 
-                                    team.setPlayer(1, pairCandidate);
+                                if((team.isValid()) && !(AlreadyInTeam(tournamentViewManager,player2))) { 
                                     tournamentViewManager.getTournament().addTeam(team);
-                                    System.out.println(player1.getName() + " matched with " + pairCandidate.getName());
+                                    System.out.println(player1.getName() + " matched;  arrsize  " + Integer.toString(players.size()));
+                                    players.get(indy).setInGame(true);
+                                    break;
                                     }
+                                else {
+                                    indy++; 
+                                    }
+                                }
+                                indx++;
 			    }
+                        teamCount=tournamentViewManager.getTournament().getTeamByType(teamType).getNumberOfPlayers();
+                        message.success("Teamcount "+teamCount);
                         }
                 });
 		buttons.add(ok);
@@ -170,7 +154,7 @@ public class AutoPairDialog extends JDialog {
                     for(Team eachTeam : teams) {
                         if(eachTeam.getTeamType().equals(this.getTeamType())) {
                             for(Player anyplayer : eachTeam.getPlayers()) {
-                                  if(player.getName()==anyplayer.getName()) {
+                                  if(player==anyplayer) {
                                         return true;   
                                     }
                             }
@@ -179,11 +163,4 @@ public class AutoPairDialog extends JDialog {
         return false;            
         }
         
-        private Player checkGradeDiffs (Player player1, Player player2, Player pairCandidate ) {
-        int gradeDiff1 = abs((this.gradeAvg)-(Integer.valueOf(player1.getLevel())+Integer.valueOf(pairCandidate.getLevel())));  
-        int gradeDiff2 = abs((this.gradeAvg)-(Integer.valueOf(player1.getLevel())+Integer.valueOf(player2.getLevel())));   
-        System.out.println( " this diff "+gradeDiff2+"; candidate diff "+gradeDiff1);
-        if(gradeDiff2<gradeDiff1) {return player2; } else { return pairCandidate; }
-        }
-       
 	}

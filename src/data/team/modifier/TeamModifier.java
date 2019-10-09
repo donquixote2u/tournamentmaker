@@ -4,6 +4,7 @@ import java.io.Serializable;
 
 import data.player.Player;
 import data.team.Team;
+import java.util.List;
 
 public class TeamModifier implements Serializable {
 	private static final long serialVersionUID = 7552784768382347279L;

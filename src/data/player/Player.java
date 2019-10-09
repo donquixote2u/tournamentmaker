@@ -192,4 +192,5 @@ public class Player implements Serializable {
 	public String toString() {
 		return name;
 	}
-}
+        
+ }

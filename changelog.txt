@@ -1,0 +1,28 @@
+ISSUE: Allows teams of same type to have same entrants
+ACTION: add vetting to tournamentui.java/openNewTeamDialog 
+
+ISSUE: Won't accept a 9/1 single match result with max=9 min=1 winby=1 
+ACTION: workaround: undiagnosed issue in courtDialog/java/match.finish() logic?  Max=10 min=9 winby=1 works
+
+ISSUE: No visibility of Team Type attributes
+PROPOSED ACTION:  add an overview
+
+ISSUE: Add "Board Play" functionality  
+
+SUBISSUE: autocreate playing pairs as teams  
+ACTION: add "autopair" button alongside manual "new team" button;  new AutoPair dialog
+
+SUBISSUE: need "boardplay" as new type of event (single match)
+ACTION: create "Board play" event type
+
+SUBISSUE:  automatically add teams of event's team type to event
+ACTION: new button/action AutoMatch
+
+SUBISSUE:  automatically assign Boardplay matches to available courts
+
+SUBISSUE:  only create as many teams as available courts
+
+
+
+
+
