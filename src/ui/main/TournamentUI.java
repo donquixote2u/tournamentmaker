@@ -571,9 +571,10 @@ public class TournamentUI extends JFrame {
 		label.setVisible(!tournamentViewManager.getTournament().getLevels().isEmpty());
 		panel.add(label, GenericUtils.createGridBagConstraint(0, 3, 0.3));
 		final JPanel levels = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
-		for(String level : tournamentViewManager.getTournament().getLevels()) {
-			levels.add(new JCheckBox(level));
-		}
+                tournamentViewManager.getTournament().getLevels().forEach((level) -> {
+                    JCheckBox J = new JCheckBox(level, true); // bvw 9/10/19 selected=Yes is default option
+                    levels.add(J);
+                    });
 		levels.setVisible(!tournamentViewManager.getTournament().getLevels().isEmpty());
 		panel.add(levels, GenericUtils.createGridBagConstraint(1, 3, 0.7));
 		panel.add(new JLabel("Number Of Teams"), GenericUtils.createGridBagConstraint(0, 4, 0.3));

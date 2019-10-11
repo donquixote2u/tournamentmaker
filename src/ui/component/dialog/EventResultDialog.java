@@ -107,7 +107,7 @@ public class EventResultDialog extends JDialog {
 		pausePanel.add(panel);
 		pausePanel.add(Box.createRigidArea(new Dimension(0, 5)));
 		buttonPanel.add(pausePanel);
-		panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 5));
+                panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 5));
 		JButton print = new JButton("Print Event");
 		print.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent event) {

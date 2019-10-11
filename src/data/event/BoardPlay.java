@@ -26,8 +26,7 @@ public class BoardPlay extends Event {
 	protected List<Match> startEvent() {
 		String level = getDisplayLevels().get(0);
 		List<Team> teams = getTeams();
-                matches.addAll(EventUtils.createSingleEliminationBracket(teams.size() / 2, this, level));
-                // matches.addAll(EventUtils.getAllMatches, level);
+                matches.addAll(EventUtils.createSingleLevelBoard(teams.size() / 2, this, level));
 		EventUtils.setTeamsInMatches(teams, matches);
 		return getMatches(level);
 	}

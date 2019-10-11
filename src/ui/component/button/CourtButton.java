@@ -53,7 +53,7 @@ public class CourtButton extends JPanel {
 	private static final Color GRAY = new Color(0x838383);
 	private TournamentViewManager manager;
 	private JLabel time;
-	private Court court;
+	private Court court;             
 	private JButton courtButton;
 	private boolean hasDrop, startedDrag;
 	private DragSource dragSource;
@@ -277,6 +277,10 @@ public class CourtButton extends JPanel {
 			return match;
 		}
 		return null;
+	}
+        
+        public String getCourtId() {                    // added 10/10/19 bvw autoassign debug use 
+		return this.court.getId().toString();
 	}
 	
 	public boolean isAvailableCourt() {

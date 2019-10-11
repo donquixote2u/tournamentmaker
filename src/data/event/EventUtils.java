@@ -209,6 +209,8 @@ public class EventUtils {
 	 */
 	public static void setTeamsInMatches(List<Team> teams, List<Match> matches) {
 		if(teams == null || matches == null || teams.size() % 2 != 0 || teams.size() / 2 != matches.size()) {
+                        System.out.println("teams:"+teams.size());
+                        System.out.println("matches:"+matches.size());
 			throw new RuntimeException("invalid parameters for team and/or matches");
 		}
 		for(int i = 0; i < teams.size(); ++i) {
@@ -241,5 +243,19 @@ public class EventUtils {
 			}
 		}
 		return true;
+	}
+public static List<Match> createSingleLevelBoard(int numberOfMatches, Event event, String level) {
+		// checking for illegal values
+		if(numberOfMatches < 1) {
+			throw new RuntimeException("illegal number of matches");
+		}
+		List<Match> matches = new ArrayList<Match>();
+		while(matches.size() < numberOfMatches) {
+                    Match m1 = event.createMatch(level);
+                    m1.setMatchLevel(1);
+                    // m1.setWinnerMatch(m1, true);
+                    matches.add(m1);
+		}
+		return matches;
 	}
 }

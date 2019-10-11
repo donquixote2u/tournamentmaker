@@ -4,6 +4,7 @@ import images.Images;
 
 import java.awt.Cursor;
 import java.awt.Dimension;
+import java.awt.HeadlessException;
 import java.awt.Insets;
 import java.awt.Toolkit;
 import java.beans.PropertyChangeEvent;
@@ -19,6 +20,7 @@ import javax.swing.JWindow;
 import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
 import javax.swing.UIManager;
+import javax.swing.UnsupportedLookAndFeelException;
 
 import ui.main.Loader;
 import ui.main.LoaderData;
@@ -71,14 +73,14 @@ public class Main {
 						}
 						catch (Exception e) {
 							loadingWindow.dispose();
-							JOptionPane.showMessageDialog(null, TournamentUI.APP_NAME + " has encountered a fatal exception:\n" +  e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        						JOptionPane.showMessageDialog(null, TournamentUI.APP_NAME + " has encountered a bad exception:\n" +  e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
 						}
 					}
 				}
 			});
 			loader.execute();
 		}
-		catch(Exception e) {
+		catch(HeadlessException | ClassNotFoundException | IllegalAccessException | InstantiationException | UnsupportedLookAndFeelException e) {
 			loadingWindow.dispose();
 			JOptionPane.showMessageDialog(null, TournamentUI.APP_NAME + " has encountered a fatal exception:\n" +  e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
 		}

@@ -118,8 +118,8 @@ public class TournamentViewManager {
 	private JList<Match> matches;
 	private EventBracketCanvas eventCanvas;
 	private Timer update;
-	private JPanel courtsPanel;
-	
+	// private JPanel courtsPanel;
+	public JPanel courtsPanel;	
 	public TournamentViewManager(TournamentUI ui, JTabbedPane displayPane, Color backgroundColor) {
 		if(ui == null || displayPane == null || backgroundColor == null) {
 			throw new RuntimeException("invalid parameters");
@@ -331,7 +331,7 @@ public class TournamentViewManager {
 		return null;
 	}
 	
-	private boolean addMatchToCourtButton(final Match match, CourtButton courtButton) {
+	public boolean addMatchToCourtButton(final Match match, CourtButton courtButton) {
 		if(courtButton != null && courtButton.addMatch(match)) {
 			if(match.getNextAvailableCourtOrder() > 0) {
 				tournament.setMatchOrder(match, 0);
@@ -339,9 +339,11 @@ public class TournamentViewManager {
 			else {
 				tournament.decrementMatchOrder();
 			}
+                        
 			tournament.removeMatch(match);
-			int index = matches.getSelectedIndex();
-			((DefaultListModel<Match>) matches.getModel()).remove(index);
+                        int index = matches.getSelectedIndex();   
+                        try    {((DefaultListModel<Match>) matches.getModel()).remove(index);}
+                        catch (Exception ignore) { }
 			courtButton.updateCourtStatus();
 			switchToTab(TOURNAMENT_TAB, true);
 			// allow the ui to update before starting the print dialog
