@@ -1,21 +1,24 @@
 /*  This is an experimental event type for Club Board Play added 23/4/19 bvw */
 package data.event;
 
+import data.event.painter.BoardplayEventPainter;
+import data.event.painter.EventPainter;
+import data.event.painter.RoundRobinEventPainter;
+import data.event.result.EmptyEventResult;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 import data.event.result.EventResult;
-import data.event.result.SingleEliminationEventResult;
 import data.match.Match;
 import data.team.Team;
 
 @CreatableEvent(displayName = "Board Play")
-public class BoardPlay extends Event {
+public class BoardPlayEvent extends Event {
 	private static final long serialVersionUID = 6291742635954664185L;
 	private List<Match> matches;
 	
-	public BoardPlay(String name, List<String> levels, Team teamFilter, int numberOfTeams, int minScore, int maxScore, int winBy, int bestOf) {
+	public BoardPlayEvent(String name, List<String> levels, Team teamFilter, int numberOfTeams, int minScore, int maxScore, int winBy, int bestOf) {
 		super(name, levels, teamFilter, numberOfTeams, minScore, maxScore, winBy, bestOf);
 		matches = new ArrayList<Match>();
 		if(numberOfTeams < 2 ) {
@@ -46,7 +49,7 @@ public class BoardPlay extends Event {
 		if(!getDisplayLevels().contains(level)) {
 			return null;
 		}
-		return new SingleEliminationEventResult(level, getMatches(level));
+		return new EmptyEventResult();
 	}
 
 	public List<Match> getMatches(String level) {
@@ -55,4 +58,9 @@ public class BoardPlay extends Event {
 		}
 		return Collections.unmodifiableList(matches);
 	}
+        
+        protected EventPainter getEventPainter(String level) {
+		return new BoardplayEventPainter(this, level);
+	}
+	
 }
