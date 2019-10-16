@@ -261,13 +261,13 @@ public class EventTeamSelector extends JDialog {
 			public void actionPerformed(ActionEvent e) {
                         int maxMatches=(teams.size()-1) / 2;    // ignore null
                         int maxLimit=manager.getTournament().getCourts().size();
-                        if(maxLimit<maxMatches) {maxMatches=maxLimit; }
-                        if(currentEvent.getNumberOfTeams()>maxMatches) 
-                            { currentEvent.setNumberOfTeams(maxMatches); }
+                        if(maxLimit<maxMatches) {maxMatches=maxLimit; }   // matches limited by # courts
+                        int teamLimit=maxMatches*2;
+                        currentEvent.setNumberOfTeams(teamLimit);      // set event size = # teams that can play
                         List<Team> theseTeams = new ArrayList<Team>();
                         for (int i=0; i<teams.size(); i++) { 
                             if(!(teams.get(i)==null)) {
-                                if (theseTeams.size()<maxMatches) { theseTeams.add(teams.get(i)); }
+                                if (theseTeams.size()<teamLimit) { theseTeams.add(teams.get(i)); }
                                 }
                             } 
                         currentEvent.setTeams(theseTeams);

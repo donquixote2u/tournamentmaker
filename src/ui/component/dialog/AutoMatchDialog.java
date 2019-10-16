@@ -34,16 +34,16 @@ import ui.util.GenericUtils;
  *
  * @author bruce
  */
-public class AutoPairDialog extends JDialog {
+public class AutoMatchDialog extends JDialog {
   	private static final long serialVersionUID = 2564561655115801740L;
        	private TournamentViewManager tournamentViewManager;
         private String teamType; 
         private int playerCount;
         private int gradeAvg;
         
-        public AutoPairDialog(JFrame owner, TournamentViewManager tournamentViewManager) {
+        public AutoMatchDialog(JFrame owner, TournamentViewManager tournamentViewManager) {
                 
-		final JDialog dialog = new JDialog(this, "New Team");
+		final JDialog dialog = new JDialog(this, "Autocreate Matches");
 		dialog.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
 		dialog.setModalityType(Dialog.ModalityType.APPLICATION_MODAL);
 		dialog.setResizable(false);
@@ -96,7 +96,7 @@ public class AutoPairDialog extends JDialog {
                 Collections.shuffle(players);               // randomise players for matching
                 message.success("Grade Avg = "+ gradeAvg);
 		JPanel buttons = new JPanel(new FlowLayout());
-		JButton ok = new JButton("Make Teams");
+		JButton ok = new JButton("Pair Matches");
 		ok.addActionListener(new ActionListener() {
 			@SuppressWarnings("unchecked")
 			public void actionPerformed(ActionEvent event) {

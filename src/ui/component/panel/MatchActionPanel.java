@@ -97,26 +97,6 @@ public class MatchActionPanel extends JPanel {
 				MatchActionPanel.this.manager.switchToTab(TournamentViewManager.TOURNAMENT_TAB, true);
 			}
 		});
-                courtAutoAssignButton = new JButton(AUTO_ASSIGN_COURTS);
-		courtAutoAssignButton.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent event) {
-                            Tournament tournament = MatchActionPanel.this.manager.getTournament();
-                            for (Iterator<Match> it = tournament.getMatches().iterator(); it.hasNext();) {
-                                Match current = it.next();
-                                System.out.println("Considering "+current.getIndex());
-                                for(Component comp : MatchActionPanel.this.manager.courtsPanel.getComponents()) {
-                                    CourtButton courtButton = (CourtButton) comp;
-                                    if(!courtButton.isAvailableCourt() || !courtButton.isUsableCourt()) {
-                                        continue;
-                                    }
-                                    if(MatchActionPanel.this.manager.addMatchToCourtButton(current, courtButton)) {
-                                        System.out.println(" Court "+courtButton.getCourtId()+" assigned");
-                                        break;
-                                    }
-                                }
-                            }
-                        }    
-		});
 		matchResult = new MatchResultDialog(owner);
 		matchDialogButton = new JButton("Set Result");
 		matchDialogButton.addActionListener(new ActionListener() {
@@ -136,7 +116,6 @@ public class MatchActionPanel extends JPanel {
 		});
 		add(matchDialogButton);
 		add(nextCourtButton);
-                add(courtAutoAssignButton);
 		setMatch(null);
 	}
 	

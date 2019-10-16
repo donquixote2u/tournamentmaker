@@ -38,6 +38,9 @@ import data.event.result.EventResult;
 import data.match.Match;
 import data.team.Team;
 import data.tournament.EventInfo;
+import data.tournament.Tournament;
+import ui.component.button.CourtButton;
+import ui.component.panel.MatchActionPanel;
 
 public class EventResultDialog extends JDialog {
 	private static final long serialVersionUID = -5971630348975035715L;
@@ -108,6 +111,27 @@ public class EventResultDialog extends JDialog {
 		pausePanel.add(Box.createRigidArea(new Dimension(0, 5)));
 		buttonPanel.add(pausePanel);
                 panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 5));
+		JButton autoCourts = new JButton("Auto-assign Courts");
+		autoCourts.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent event) {
+                            Tournament tournament = manager.getTournament();
+                            for (Match current : tournament.getMatches()) {
+                                System.out.println("Considering "+current.getIndex());
+                                for(Component comp : manager.courtsPanel.getComponents()) {
+                                    CourtButton courtButton = (CourtButton) comp;
+                                    if(!courtButton.isAvailableCourt() || !courtButton.isUsableCourt()) {
+                                        continue;
+                                    }
+                                    if(manager.addMatchToCourtButton(current, courtButton)) {
+                                        System.out.println(" Court "+courtButton.getCourtId()+" assigned");
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+		});
+		panel.add(autoCourts);
+                // panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 5));
 		JButton print = new JButton("Print Event");
 		print.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent event) {

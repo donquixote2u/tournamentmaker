@@ -55,6 +55,10 @@ public abstract class Event implements Serializable {
 	public final int getNumberOfTeams() {
 		return numberOfTeams;
 	}
+        // 10/10/19 bvw setter added for BoardPlay event use
+        public final void setNumberOfTeams(int numberOfTeams) {
+                this.numberOfTeams=numberOfTeams;
+	}
 	
 	public final String getName() {
 		return name;
